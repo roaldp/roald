@@ -1,8 +1,9 @@
-# Personal Companion MVP (Safe Repo Layout)
-
-This repository tracks code, prompts, and templates only.
+# Local Claude Companion
 
 Personal note: Using your local Claude Code account to run a recurring heartbeat for a proactive assistant that communicates over Slack.
+
+## 5 min setup:
+Ask Claude how to set up this project. Get your Slack ID (dm yourself, copy url, drop in Claude)
 
 ## Privacy model
 
