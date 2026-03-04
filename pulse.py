@@ -307,7 +307,12 @@ async def run_reactive_pulse(config: dict, user_message: str) -> None:
     try:
         log("Running reactive pulse...")
         template = PROMPT_REACTIVE.read_text()
-        prompt = template.replace("{{CURRENT_TIME}}", current_time_iso(config)).replace("{{USER_MESSAGE}}", user_message)
+        prompt = (
+            template
+            .replace("{{CURRENT_TIME}}", current_time_iso(config))
+            .replace("{{USER_MESSAGE}}", user_message)
+            .replace("{{SLACK_DM_CHANNEL_ID}}", config.get("slack_dm_channel_id", ""))
+        )
         output = run_claude(prompt, config, operation="reactive_pulse")
         log(f"Reactive pulse complete. Output length: {len(output)} chars")
     except Exception as e:
@@ -323,7 +328,11 @@ async def run_full_pulse(config: dict) -> None:
     try:
         log("Running full pulse...")
         template = PROMPT_FULL.read_text()
-        prompt = template.replace("{{CURRENT_TIME}}", current_time_iso(config))
+        prompt = (
+            template
+            .replace("{{CURRENT_TIME}}", current_time_iso(config))
+            .replace("{{SLACK_DM_CHANNEL_ID}}", config.get("slack_dm_channel_id", ""))
+        )
         output = run_claude(prompt, config, operation="full_pulse")
         log(f"Full pulse complete. Output length: {len(output)} chars")
     except Exception as e:

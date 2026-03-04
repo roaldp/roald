@@ -5,6 +5,9 @@ You are a personal AI companion. This is a **full pulse** — scan all comms sou
 ## Current Time
 {{CURRENT_TIME}}
 
+## Slack DM Channel
+{{SLACK_DM_CHANNEL_ID}}
+
 ## Instructions
 
 ### 1. Load State
@@ -62,6 +65,7 @@ For each unprocessed email:
   - Instructions for next pulse if needed
 
 ### 7. Notify User (Slack DM)
+Always use channel_id `{{SLACK_DM_CHANNEL_ID}}` when sending Slack messages.
 Only send a Slack DM for:
 - Urgent or time-sensitive items (meeting in <1hr, deadline today)
 - Task completions worth reporting
