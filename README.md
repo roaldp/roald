@@ -2,8 +2,15 @@
 
 Personal note: Using your local Claude Code account to run a recurring heartbeat for a proactive assistant that communicates over Slack.
 
-## 5 min setup:
-Ask Claude how to set up this project. Get your Slack ID (dm yourself, copy url, drop in Claude)
+## 5 min setup
+
+Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed.
+
+```bash
+./setup.sh
+```
+
+Or manually: copy `config.template.yaml` to `config.yaml`, fill in your Slack IDs and timezone, then run `python3 pulse.py`.
 
 ## Privacy model
 
