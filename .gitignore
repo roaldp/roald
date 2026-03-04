@@ -1,0 +1,11 @@
+# Personal AI companion runtime/state (contains private data)
+mind.md
+knowledge/
+logs/
+
+# Local configuration / notes
+config.yaml
+SETUP_CONVERSATION.md
+
+# Conductor local context
+.context/

@@ -1,0 +1,24 @@
+# Runtime configuration template (safe to commit)
+
+# Pulse intervals
+full_pulse_interval_minutes: 30
+slack_poll_interval_seconds: 5
+
+# User identity (fill locally in config.yaml; do not commit secrets or IDs)
+slack_user_id: ""
+slack_dm_channel_id: ""
+
+# Timezone
+timezone: "UTC"
+
+# Source toggles
+sources:
+  slack: true
+  gmail: true
+  fireflies: true
+  calendar: true
+
+# Claude CLI config
+claude_command: "claude"
+claude_model: "sonnet"
+claude_timeout_seconds: 300
