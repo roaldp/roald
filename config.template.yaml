@@ -1,8 +1,8 @@
 # Runtime configuration template (safe to commit)
 
-# Pulse intervals
+# Pulse intervals (defaults)
 full_pulse_interval_minutes: 30
-slack_poll_interval_seconds: 5
+slack_poll_interval_seconds: 1
 
 # User identity (fill locally in config.yaml; do not commit secrets or IDs)
 slack_user_id: ""
