@@ -33,7 +33,8 @@ ALLOWED_TOOLS = (
     "mcp__claude_ai_Slack__*,"
     "mcp__claude_ai_Gmail__*,"
     "mcp__claude_ai_Fireflies__*,"
-    "mcp__claude_ai_Google_Calendar__*"
+    "mcp__claude_ai_Google_Calendar__*,"
+    "mcp__claude_ai_Google_Drive__*"
 )
 
 SLACK_OUTBOUND_TOOLS = {
@@ -247,11 +248,8 @@ def poll_slack_messages(config: dict, channel_id: str) -> list[dict]:
 
 async def slack_loop(config: dict) -> None:
     interval = config.get("slack_poll_interval_seconds", 5)
-    channel_id = config.get("slack_dm_channel_id", "")
     user_id = str(config.get("slack_user_id", "")).strip()
-    if not channel_id:
-        log("slack_dm_channel_id not set — skipping Slack listener")
-        return
+    channel_id = slack_channel(config)
 
     last_ts: Optional[str] = None
     log(f"Slack listener started (channel={channel_id}, interval={interval}s)")
@@ -311,7 +309,7 @@ async def run_reactive_pulse(config: dict, user_message: str) -> None:
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
             .replace("{{USER_MESSAGE}}", user_message)
-            .replace("{{SLACK_DM_CHANNEL_ID}}", config.get("slack_dm_channel_id", ""))
+            .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
         )
         output = run_claude(prompt, config, operation="reactive_pulse")
         log(f"Reactive pulse complete. Output length: {len(output)} chars")
@@ -331,7 +329,7 @@ async def run_full_pulse(config: dict) -> None:
         prompt = (
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
-            .replace("{{SLACK_DM_CHANNEL_ID}}", config.get("slack_dm_channel_id", ""))
+            .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
         )
         output = run_claude(prompt, config, operation="full_pulse")
         log(f"Full pulse complete. Output length: {len(output)} chars")
@@ -366,9 +364,22 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def validate_config(config: dict) -> None:
+    user_id = str(config.get("slack_user_id", "")).strip()
+    if not user_id:
+        print("ERROR: slack_user_id is not set in config.yaml. Set it to your Slack user ID (e.g. U01XXXXXXX).", flush=True)
+        sys.exit(1)
+
+
+def slack_channel(config: dict) -> str:
+    """Returns the channel to post to and listen on. Defaults to slack_user_id."""
+    return str(config.get("slack_channel_id", "")).strip() or str(config.get("slack_user_id", "")).strip()
+
+
 async def main(args: argparse.Namespace) -> None:
     ensure_runtime_files()
     config = load_config()
+    validate_config(config)
     log("Pulse starting up")
 
     # Ensure lock is clear on startup (stale lock from previous crash)

@@ -7,6 +7,11 @@
 - Prefer quick wins before deep work.
 - Avoid unnecessary notifications.
 
+## Source Configuration
+| Source | Status | Notes |
+|---|---|---|
+| Google Drive Transcripts | pending_discovery | Folder ID not yet known |
+
 ---
 
 ## Last Pulse
