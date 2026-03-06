@@ -34,5 +34,23 @@ If the message changes state, update `mind.md`:
 - Do NOT proactively surface items unless the user asks "what's new?" or similar
 - Keep the interaction focused on what the user asked
 
-### 5. Output
+### 5. Available Skills
+
+{{SKILL_INDEX}}
+
+When a task matches a skill, respond with a skill request block instead of doing the work yourself:
+```json
+{"skill_request": {"name": "skill-name", "task": "what to do", "context": "relevant info"}}
+```
+The system will spawn a separate process to handle it. You can request multiple skills in one response.
+
+### 6. Skill-Triggered Learning
+
+If the user says "learn how to do X", "remember this workflow", or similar:
+- Create a new skill in `skills/local/` with a generated `SKILL.md`
+- The skill should capture the workflow as natural-language instructions
+- Use proper YAML frontmatter with name, description, and required tools
+- Confirm to the user that the skill was created and will be available on next pulse
+
+### 7. Output
 After responding in Slack and updating mind if needed, output a brief summary of what you did.
