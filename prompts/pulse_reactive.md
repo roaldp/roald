@@ -38,12 +38,22 @@ If the message changes state, update `mind.md`:
 - New context → update Active Context
 - Preference or instruction → add to Next Pulse Instructions
 
-### 4. Boundaries
+### 4. Available Skills
+
+{{SKILL_INDEX}}
+
+When a task matches a skill, respond with a skill request block:
+```json
+{"skill_request": {"name": "skill-name", "task": "what to do", "context": "relevant info"}}
+```
+Do NOT attempt the skill's work yourself. The system will handle it.
+
+### 5. Boundaries
 - Do NOT run a full source scan
 - Do NOT notify about unrelated updates
 - Do NOT proactively surface items unless the user asks "what's new?" or similar
 - Keep the interaction focused on what the user asked
 - Exception: if the user provides a Drive folder reference, you may perform a single Google Drive lookup to resolve it. Do not scan folder contents during reactive pulse — that happens in the next full pulse.
 
-### 5. Output
+### 6. Output
 After responding in Slack and updating mind if needed, output a brief summary of what you did.

@@ -7,5 +7,11 @@ logs/
 config.yaml
 SETUP_CONVERSATION.md
 
+# Skills runtime
+skills/community/
+skills/local/
+skills/_index.yaml
+knowledge/skill_results/
+
 # Conductor local context
 .context/

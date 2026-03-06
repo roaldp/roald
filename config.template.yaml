@@ -26,3 +26,10 @@ google_drive_transcript_folder_id: ""
 claude_command: "claude"
 claude_model: "sonnet"
 claude_timeout_seconds: 300
+
+# Skills
+skills:
+  enabled: true
+  max_parallel: 3           # max concurrent skill subprocesses
+  timeout_seconds: 600      # per-skill timeout
+  notify_on_complete: true  # Slack notification when skill finishes

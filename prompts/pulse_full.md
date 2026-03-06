@@ -106,5 +106,15 @@ Only send a Slack DM for:
 
 Do NOT notify for routine updates — those go silently into mind.md.
 
-### 8. Output
+### 8. Available Skills
+
+{{SKILL_INDEX}}
+
+When a task matches a skill, respond with a skill request block:
+```json
+{"skill_request": {"name": "skill-name", "task": "what to do", "context": "relevant info"}}
+```
+Do NOT attempt the skill's work yourself. The system will handle it.
+
+### 9. Output
 After completing all steps, output a brief summary of what changed since last pulse.

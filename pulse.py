@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -20,10 +21,12 @@ CONFIG_PATH = BASE_DIR / "config.yaml"
 MIND_PATH = BASE_DIR / "mind.md"
 KNOWLEDGE_DIR = BASE_DIR / "knowledge"
 KNOWLEDGE_INDEX_PATH = KNOWLEDGE_DIR / "index.md"
+SKILL_RESULTS_DIR = KNOWLEDGE_DIR / "skill_results"
 LOCK_PATH = BASE_DIR / "logs" / ".pulse_lock"
 LOG_PATH = BASE_DIR / "logs" / "pulse.log"
 PROMPT_FULL = BASE_DIR / "prompts" / "pulse_full.md"
 PROMPT_REACTIVE = BASE_DIR / "prompts" / "pulse_reactive.md"
+PROMPT_SKILL_RUNNER = BASE_DIR / "prompts" / "skill_runner.md"
 TEMPLATES_DIR = BASE_DIR / "templates"
 MIND_TEMPLATE_PATH = TEMPLATES_DIR / "mind.template.md"
 KNOWLEDGE_INDEX_TEMPLATE_PATH = TEMPLATES_DIR / "knowledge_index.template.md"
@@ -98,6 +101,7 @@ def ensure_runtime_files() -> None:
     (KNOWLEDGE_DIR / "meetings").mkdir(parents=True, exist_ok=True)
     (KNOWLEDGE_DIR / "emails").mkdir(parents=True, exist_ok=True)
     (KNOWLEDGE_DIR / "notes").mkdir(parents=True, exist_ok=True)
+    SKILL_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
     if not MIND_PATH.exists():
         if MIND_TEMPLATE_PATH.exists():
@@ -224,6 +228,102 @@ def run_claude(
     return result_text
 
 
+_SKILL_REQUEST_RE = re.compile(r'\{"skill_request"\s*:\s*\{.*?\}\s*\}', re.DOTALL)
+
+# Track active skill tasks for parallel execution
+active_skills: dict[str, asyncio.Task] = {}
+
+
+def parse_skill_requests(text: str) -> list[dict]:
+    """Extract skill_request JSON blocks from Claude's response text."""
+    requests = []
+    for match in _SKILL_REQUEST_RE.finditer(text):
+        try:
+            parsed = json.loads(match.group())
+            req = parsed.get("skill_request", {})
+            if req.get("name"):
+                requests.append(req)
+        except json.JSONDecodeError:
+            continue
+    return requests
+
+
+async def run_skill(skill_name: str, task: str, context: str, config: dict) -> str:
+    """Run a skill as a separate Claude subprocess."""
+    from skills import load_skill_body
+
+    log(f"SKILL START: {skill_name}")
+    body = load_skill_body(skill_name)
+    if not body:
+        log(f"SKILL ERROR: {skill_name} — skill not found")
+        return f"Error: skill '{skill_name}' not found."
+
+    template = PROMPT_SKILL_RUNNER.read_text(encoding="utf-8")
+    prompt = (
+        template
+        .replace("{{CURRENT_TIME}}", current_time_iso(config))
+        .replace("{{SKILL_NAME}}", skill_name)
+        .replace("{{SKILL_BODY}}", body)
+        .replace("{{SKILL_TASK}}", task)
+        .replace("{{SKILL_CONTEXT}}", context)
+    )
+
+    try:
+        result = await asyncio.to_thread(
+            run_claude, prompt, config,
+            allowed_tools=ALLOWED_TOOLS,
+            operation=f"skill:{skill_name}",
+        )
+    except Exception as e:
+        log(f"SKILL ERROR: {skill_name} — {e}")
+        return f"Error running skill '{skill_name}': {e}"
+
+    # Write result to skill_results directory
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    result_path = SKILL_RESULTS_DIR / f"{timestamp}_{skill_name}.md"
+    result_path.write_text(
+        f"# Skill Result: {skill_name}\n\n"
+        f"**Task:** {task}\n\n"
+        f"**Timestamp:** {timestamp}\n\n"
+        f"---\n\n{result}",
+        encoding="utf-8",
+    )
+    log(f"SKILL END: {skill_name} — result saved to {result_path.name}")
+    return result
+
+
+async def dispatch_skill_requests(text: str, config: dict) -> None:
+    """Parse skill requests from Claude output and dispatch them in parallel."""
+    requests = parse_skill_requests(text)
+    if not requests:
+        return
+
+    skills_config = config.get("skills", {})
+    if not skills_config.get("enabled", True):
+        return
+
+    max_parallel = skills_config.get("max_parallel", 3)
+
+    for req in requests:
+        name = req["name"]
+        if len(active_skills) >= max_parallel:
+            log(f"SKILL SKIP: {name} — max parallel limit ({max_parallel}) reached")
+            continue
+
+        task_coro = run_skill(
+            skill_name=name,
+            task=req.get("task", ""),
+            context=req.get("context", ""),
+            config=config,
+        )
+        active_skills[name] = asyncio.create_task(task_coro)
+
+    # Clean up completed tasks
+    done = [k for k, t in active_skills.items() if t.done()]
+    for k in done:
+        del active_skills[k]
+
+
 def poll_slack_messages(config: dict, channel_id: str) -> list[dict]:
     prompt = (
         f"Use slack_read_channel to read the last 5 messages from channel {channel_id}. "
@@ -244,6 +344,16 @@ def poll_slack_messages(config: dict, channel_id: str) -> list[dict]:
         return json.loads(text[start:end])
     except json.JSONDecodeError:
         return []
+
+
+def _get_skill_index() -> str:
+    """Build and return the skill index markdown, or a placeholder if no skills."""
+    try:
+        from skills import generate_index_markdown
+        return generate_index_markdown()
+    except Exception as e:
+        log(f"Skill index build error: {e}")
+        return "_No skills available._"
 
 
 async def slack_loop(config: dict) -> None:
@@ -304,14 +414,17 @@ async def run_reactive_pulse(config: dict, user_message: str) -> None:
         return
     try:
         log("Running reactive pulse...")
+        skill_index = _get_skill_index()
         template = PROMPT_REACTIVE.read_text()
         prompt = (
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
             .replace("{{USER_MESSAGE}}", user_message)
             .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
+            .replace("{{SKILL_INDEX}}", skill_index)
         )
         output = run_claude(prompt, config, operation="reactive_pulse")
+        await dispatch_skill_requests(output, config)
         log(f"Reactive pulse complete. Output length: {len(output)} chars")
     except Exception as e:
         log(f"Reactive pulse error: {e}")
@@ -325,13 +438,16 @@ async def run_full_pulse(config: dict) -> None:
         return
     try:
         log("Running full pulse...")
+        skill_index = _get_skill_index()
         template = PROMPT_FULL.read_text()
         prompt = (
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
             .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
+            .replace("{{SKILL_INDEX}}", skill_index)
         )
         output = run_claude(prompt, config, operation="full_pulse")
+        await dispatch_skill_requests(output, config)
         log(f"Full pulse complete. Output length: {len(output)} chars")
     except Exception as e:
         log(f"Full pulse error: {e}")
@@ -360,6 +476,12 @@ def parse_args() -> argparse.Namespace:
         "--once-reactive",
         metavar="MESSAGE",
         help="Run one reactive pulse with MESSAGE and exit.",
+    )
+    mode.add_argument(
+        "--once-skill",
+        nargs=2,
+        metavar=("SKILL", "TASK"),
+        help="Run a single skill with TASK and exit.",
     )
     return parser.parse_args()
 
@@ -393,6 +515,12 @@ async def main(args: argparse.Namespace) -> None:
 
     if args.once_reactive is not None:
         await run_reactive_pulse(config, args.once_reactive)
+        return
+
+    if args.once_skill is not None:
+        skill_name, skill_task = args.once_skill
+        result = await run_skill(skill_name, skill_task, "", config)
+        print(result)
         return
 
     await asyncio.gather(
