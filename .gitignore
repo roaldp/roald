@@ -13,5 +13,8 @@ skills/local/
 skills/_index.yaml
 knowledge/skill_results/
 
+# Python
+__pycache__/
+
 # Conductor local context
 .context/
