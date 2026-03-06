@@ -7,6 +7,7 @@ set -euo pipefail
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_PATH="$BASE_DIR/logs/pulse.log"
 PID_PATH="$BASE_DIR/logs/pulse.pid"
+RUN_LOOP="$BASE_DIR/scripts/run_loop.sh"
 
 mkdir -p "$BASE_DIR/logs"
 
@@ -24,11 +25,11 @@ fi
 
 # Option 1: Open a new macOS Terminal window (visible, stays open)
 if command -v osascript >/dev/null 2>&1; then
-  osascript - "$BASE_DIR" <<'APPLESCRIPT' 2>/dev/null && {
+  osascript - "$RUN_LOOP" <<'APPLESCRIPT' 2>/dev/null && {
 on run argv
-  set projectDir to item 1 of argv
+  set loopScript to item 1 of argv
   tell application "Terminal"
-    do script "cd " & quoted form of projectDir & " && python3 -u pulse.py"
+    do script "bash " & quoted form of loopScript
     activate
   end tell
 end run
@@ -39,8 +40,8 @@ APPLESCRIPT
   }
 fi
 
-# Option 2: Background process with nohup, output to log file
-nohup python3 -u "$BASE_DIR/pulse.py" >> "$LOG_PATH" 2>&1 &
+# Option 2: Background process with nohup
+nohup bash -c 'trap "kill %1 2>/dev/null; exit" TERM INT; bash "'"$RUN_LOOP"'" >> "'"$LOG_PATH"'" 2>&1' &
 bg_pid=$!
 echo "$bg_pid" > "$PID_PATH"
 printf '[OK] Companion started in background (PID %s)\n' "$bg_pid"

@@ -26,3 +26,9 @@ google_drive_transcript_folder_id: ""
 claude_command: "claude"
 claude_model: "sonnet"
 claude_timeout_seconds: 300
+
+# Auto-update: checks upstream every 12h and notifies via Slack
+auto_update:
+  enabled: true
+  check_interval_hours: 12
+  branch: "main"
