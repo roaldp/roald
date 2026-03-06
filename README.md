@@ -102,146 +102,84 @@ Commit-safe templates live under `templates/`.
 
 ## Testing the dashboard feature
 
-Step-by-step instructions for a conductor to verify the dashboard works correctly.
+### Quick test via Claude Code (paste this prompt)
 
-### Prerequisites
+Open Claude Code locally in the `roald` repo directory and paste:
 
-- Python 3 installed
-- `pyyaml` installed (`pip install pyyaml`)
-- Repo cloned locally
+```
+Test the dashboard feature end-to-end. Do these steps in order:
 
-### 1. Start the dashboard (cold start — no companion running)
+1. Install pyyaml if needed: pip install pyyaml
+2. Start the dashboard server in the background: python3 dashboard/server.py &
+3. Wait 2 seconds, then curl http://localhost:7888/ and verify the HTML loads with title "Roald — Companion Dashboard"
+4. Test each API endpoint and report what you get:
+   - curl -s http://localhost:7888/api/status | python3 -m json.tool
+   - curl -s http://localhost:7888/api/mind/raw | python3 -m json.tool
+   - curl -s http://localhost:7888/api/logs?lines=50 | python3 -m json.tool
+   - curl -s http://localhost:7888/api/knowledge | python3 -m json.tool
+   - curl -s http://localhost:7888/api/knowledge/file?path=nonexistent.md | python3 -m json.tool
+   - curl -s http://localhost:7888/api/doesnotexist | python3 -m json.tool
+5. Verify static assets load:
+   - curl -s http://localhost:7888/css/style.css | head -5
+   - curl -s http://localhost:7888/js/app.js | head -5
+6. Test with mock data — create a minimal mind.md from the template, then re-check /api/status to see if sections parse correctly
+7. Kill the dashboard background process when done
+8. Report a summary: which endpoints work, which fail, any errors found
+
+Expected results:
+- /api/status returns JSON with keys: running, locked, mind_exists, stats, config, sources, tasks, events
+- /api/mind/raw returns {"content": ""} or the mind.md contents
+- /api/logs returns {"entries": [...]}
+- /api/knowledge returns {"index": [...], "files": {"meetings": [], "emails": [], "notes": []}}
+- /api/knowledge/file returns {"content": ""} for missing files
+- /api/doesnotexist returns {"error": "Unknown endpoint"}
+- Static files (CSS, JS, HTML) all load with correct content
+```
+
+### Manual browser test (for visual verification)
+
+After confirming the API works via Claude Code above, open the dashboard yourself:
 
 ```bash
+cd roald
 python3 dashboard/server.py
 ```
 
-Open http://localhost:7888 in your browser.
+Open http://localhost:7888 and walk through these checks:
 
-**Verify:**
-- [ ] Page loads with the title "Roald — Companion Dashboard"
-- [ ] Status badge shows **Offline** (red/grey)
-- [ ] Clock in the top-right updates every second
-- [ ] All stat cards show "—" (no data yet)
-- [ ] Footer shows auto-refresh countdown from 10
+**Overview tab:**
+- [ ] Page loads with title "Roald — Companion Dashboard"
+- [ ] Status badge shows **Offline** (no companion running) or **Running** (companion active)
+- [ ] Clock updates every second in the top-right
+- [ ] Stats row shows pulse counts (or "—" if no pulses yet)
+- [ ] Sources, Active Context, Pending Tasks, Inbox Tracker, Recent Events all render
+- [ ] Footer countdown ticks from 10 to 0 and auto-refreshes
 
-### 2. Overview tab — with no data
+**Mind tab:**
+- [ ] Shows raw `mind.md` contents in a code block
+- [ ] Refresh button works
+- [ ] Shows "not found" message if `mind.md` doesn't exist
 
-Since neither `mind.md`, `config.yaml`, nor `logs/pulse.log` exist yet, this tests the empty state.
-
-**Verify:**
-- [ ] Companion Status shows: Process = "Not running", Mind File = "Not created"
-- [ ] Sources shows "No sources configured"
-- [ ] Active Context, Pending Tasks, Inbox Zero Tracker, Recent Events all show placeholder text
-- [ ] No JS errors in the browser console
-
-### 3. Overview tab — with data
-
-Start the companion so it generates runtime files:
-
-```bash
-./scripts/start.sh
-```
-
-Wait for the first pulse to complete (2–5 min), then check the dashboard.
-
-**Verify:**
-- [ ] Status badge switches to **Running** (green) or **Pulsing** (amber if a pulse is in progress)
-- [ ] Stats populate: Total Pulses ≥ 1, Full Pulses ≥ 1
-- [ ] Last Pulse shows a timestamp
-- [ ] Sources list shows each configured source with its status (active / awaiting / unavailable)
-- [ ] Active Context and Pending Tasks populate from `mind.md`
-- [ ] Recent Events shows at least one entry
-- [ ] Data refreshes automatically every 10 seconds (watch the countdown)
-
-### 4. Mind tab
-
-Click the **Mind** tab.
-
-**Verify:**
-- [ ] Raw contents of `mind.md` are displayed in a code block
-- [ ] "Refresh" button reloads the content
-- [ ] If `mind.md` doesn't exist, shows "mind.md not found — companion has not run yet."
-
-### 5. Knowledge tab
-
-Click the **Knowledge** tab.
-
-**Verify:**
+**Knowledge tab:**
 - [ ] Three columns: Meetings, Emails, Notes
-- [ ] If knowledge files exist, they appear as clickable items with name and modified date
-- [ ] Clicking a file opens a preview panel below with the file contents
-- [ ] "Close" button hides the preview
-- [ ] Knowledge Index section shows indexed entries (or "No knowledge indexed yet")
+- [ ] Clicking a file opens preview panel; Close button hides it
+- [ ] Knowledge Index renders
 
-### 6. Logs tab
+**Logs tab:**
+- [ ] Log entries appear with timestamps
+- [ ] Line count selector (50/100/250/500) works
+- [ ] Auto-scroll checkbox keeps view at bottom
 
-Click the **Logs** tab.
+**Config tab:**
+- [ ] Shows Timezone, Pulse Interval, Slack Poll Interval, Claude Model
+- [ ] Source toggles show Enabled/Disabled
+- [ ] Next Pulse Instructions and Preferences sections render
 
-**Verify:**
-- [ ] Log entries appear with timestamps in brackets
-- [ ] Color coding works: errors in red, TOOL entries highlighted, SLACK entries highlighted, pulse entries highlighted
-- [ ] Line count selector (50/100/250/500) reloads with the selected number of lines
-- [ ] Auto-scroll checkbox keeps the view at the bottom
-- [ ] "Refresh" button reloads the log
-- [ ] If no log file exists, the viewer is empty (no errors)
+**Tab switching:**
+- [ ] Each tab switches content cleanly
+- [ ] Only one tab active at a time
 
-### 7. Config tab
-
-Click the **Config** tab.
-
-**Verify:**
-- [ ] Configuration grid shows: Timezone, Full Pulse Interval, Slack Poll Interval, Claude Model
-- [ ] Slack User ID shows "Set" or "Not set" as appropriate
-- [ ] Each enabled source shows "Enabled" (green) or "Disabled" (orange)
-- [ ] Next Pulse Instructions and Preferences sections render content from `mind.md`
-
-### 8. Tab switching
-
-**Verify:**
-- [ ] Clicking each tab (Overview → Mind → Knowledge → Logs → Config) switches content
-- [ ] Only one tab is highlighted/active at a time
-- [ ] Returning to Overview still shows up-to-date data
-
-### 9. Auto-refresh
-
-**Verify:**
-- [ ] Footer countdown decrements from 10 to 0
-- [ ] At 0, data reloads and countdown resets to 10
-- [ ] If you trigger a pulse mid-countdown, the next refresh picks up the new data
-
-### 10. API endpoints (optional, for deeper validation)
-
-Test the API directly with curl:
-
-```bash
-# Status endpoint — returns full companion state
-curl -s http://localhost:7888/api/status | python3 -m json.tool
-
-# Logs endpoint — returns parsed log entries
-curl -s http://localhost:7888/api/logs?lines=50 | python3 -m json.tool
-
-# Knowledge listing
-curl -s http://localhost:7888/api/knowledge | python3 -m json.tool
-
-# Mind raw content
-curl -s http://localhost:7888/api/mind/raw | python3 -m json.tool
-
-# Knowledge file preview (replace filename)
-curl -s "http://localhost:7888/api/knowledge/file?path=example.md" | python3 -m json.tool
-```
-
-**Verify:**
-- [ ] Each endpoint returns valid JSON with no errors
-- [ ] `/api/status` includes: `running`, `locked`, `mind_exists`, `stats`, `config`, `sources`, `tasks`, `events`
-- [ ] `/api/logs` returns `entries` array with `timestamp` and `message` fields
-- [ ] `/api/knowledge` returns `index` and `files` with `meetings`, `emails`, `notes` arrays
-- [ ] `/api/knowledge/file` returns file content (or empty string for missing files)
-- [ ] Unknown endpoints return `{"error": "Unknown endpoint"}`
-
-### 11. Edge cases
-
-- [ ] Stop the companion (`Ctrl+C` on `start.sh`), verify dashboard shows "Offline" on next refresh
-- [ ] Delete `mind.md`, verify Overview shows empty state and Mind tab shows "not found" message
-- [ ] Start a second dashboard instance on a different port: `DASHBOARD_PORT=7889 python3 dashboard/server.py` — verify it works independently
-- [ ] Rapidly switch tabs — no crashes or stale data
+**Edge cases:**
+- [ ] Stop companion → dashboard shows "Offline" on next refresh
+- [ ] Delete `mind.md` → Overview shows empty state
+- [ ] Alternative port works: `DASHBOARD_PORT=7889 python3 dashboard/server.py`
