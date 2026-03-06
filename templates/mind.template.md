@@ -10,6 +10,10 @@
 ## Source Configuration
 | Source | Status | Notes |
 |---|---|---|
+| Slack | pending_discovery | Will verify on first pulse |
+| Gmail | pending_discovery | Will verify on first pulse |
+| Calendar | pending_discovery | Will verify on first pulse |
+| Fireflies | pending_discovery | Will verify on first pulse |
 | Google Drive Transcripts | pending_discovery | Folder ID not yet known |
 
 ---

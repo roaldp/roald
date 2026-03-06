@@ -23,6 +23,7 @@ KNOWLEDGE_INDEX_PATH = KNOWLEDGE_DIR / "index.md"
 LOCK_PATH = BASE_DIR / "logs" / ".pulse_lock"
 LOG_PATH = BASE_DIR / "logs" / "pulse.log"
 PROMPT_FULL = BASE_DIR / "prompts" / "pulse_full.md"
+PROMPT_ONBOARDING = BASE_DIR / "prompts" / "pulse_onboarding.md"
 PROMPT_REACTIVE = BASE_DIR / "prompts" / "pulse_reactive.md"
 TEMPLATES_DIR = BASE_DIR / "templates"
 MIND_TEMPLATE_PATH = TEMPLATES_DIR / "mind.template.md"
@@ -91,6 +92,15 @@ def acquire_lock() -> bool:
 def release_lock() -> None:
     if LOCK_PATH.exists():
         LOCK_PATH.unlink()
+
+
+def is_first_run() -> bool:
+    """Returns True if mind.md has never been pulsed (no timestamp in Last Pulse section)."""
+    if not MIND_PATH.exists():
+        return True
+    text = MIND_PATH.read_text(encoding="utf-8")
+    # Template default — no pulse has completed yet
+    return "_No pulses yet._" in text
 
 
 def ensure_runtime_files() -> None:
@@ -319,13 +329,32 @@ async def run_reactive_pulse(config: dict, user_message: str) -> None:
         release_lock()
 
 
+def refresh_mcp_inventory() -> None:
+    """Refresh .context/mcp_tools.json before each full pulse."""
+    inventory_script = BASE_DIR / "scripts" / "mcp_inventory.py"
+    if not inventory_script.exists():
+        return
+    try:
+        subprocess.run(
+            [sys.executable, str(inventory_script)],
+            cwd=str(BASE_DIR),
+            timeout=30,
+            capture_output=True,
+        )
+    except Exception as e:
+        log(f"MCP inventory refresh skipped: {e}")
+
+
 async def run_full_pulse(config: dict) -> None:
     if not acquire_lock():
         log("Full pulse skipped — another pulse is running")
         return
     try:
-        log("Running full pulse...")
-        template = PROMPT_FULL.read_text()
+        refresh_mcp_inventory()
+        first_run = is_first_run()
+        prompt_path = PROMPT_ONBOARDING if (first_run and PROMPT_ONBOARDING.exists()) else PROMPT_FULL
+        log(f"Running {'onboarding' if first_run and PROMPT_ONBOARDING.exists() else 'full'} pulse...")
+        template = prompt_path.read_text()
         prompt = (
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
