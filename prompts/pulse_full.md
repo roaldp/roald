@@ -69,5 +69,70 @@ Only send a Slack DM for:
 
 Do NOT notify for routine updates — those go silently into mind.md.
 
+### 7b. Interactive Action Suggestions
+
+When sending a Slack DM that involves actionable items, present the user with clickable options using Block Kit buttons. This makes it easy for the user to act immediately.
+
+**How to send interactive messages:**
+Include a `blocks` parameter in your `slack_send_message` tool call alongside the regular `text` field. The `text` field serves as a fallback and must include numbered text options.
+
+**Block Kit format:**
+```json
+{
+  "channel_id": "<channel>",
+  "text": "Meeting with Alice — action items ready.\nReply: 1) Draft followup  2) Add to tasks  3) Share notes",
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "Meeting with Alice — action items ready."
+      }
+    },
+    {
+      "type": "actions",
+      "block_id": "pulse_actions",
+      "elements": [
+        {
+          "type": "button",
+          "text": { "type": "plain_text", "text": "Draft followup" },
+          "action_id": "pulse_action_0",
+          "value": "Draft a followup email to Alice summarizing the key decisions"
+        },
+        {
+          "type": "button",
+          "text": { "type": "plain_text", "text": "Add to tasks" },
+          "action_id": "pulse_action_1",
+          "value": "Add the meeting action items to my pending tasks list"
+        },
+        {
+          "type": "button",
+          "text": { "type": "plain_text", "text": "Share notes" },
+          "action_id": "pulse_action_2",
+          "value": "Share the meeting notes with all attendees via email"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Rules:**
+- Always include a `text` fallback with numbered options (e.g., "Reply 1 for X, 2 for Y")
+- Each button's `value` must be a **complete, self-contained instruction** that can be executed as a standalone reactive pulse
+- Button labels: short (2-4 words). Full instruction goes in `value`.
+- Maximum 3-5 buttons per message
+- Only add buttons when there are genuinely useful actions. Not every message needs them.
+
+**Context-adaptive examples:**
+- After meeting summary → "Draft followup", "Add to tasks", "Share notes with team"
+- After email digest → "Reply now", "Snooze to tomorrow", "Delegate to [name]"
+- After calendar alert → "Prep notes", "Reschedule", "Set reminder"
+- Inbox zero push → "Send drafts", "Skip for now", "Edit draft for [email]"
+
+**After sending options**, update `mind.md` under "Pending Action Options" with the numbered options you offered, so you can resolve numbered replies later (e.g., user replies "1" → execute option 1).
+
+If the `blocks` parameter is rejected by the tool, fall back to text-only with the numbered options.
+
 ### 8. Output
 After completing all steps, output a brief summary of what changed since last pulse.

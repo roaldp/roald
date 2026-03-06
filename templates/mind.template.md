@@ -18,6 +18,14 @@ _No active context yet._
 ## Pending Tasks
 _No tasks yet._
 
+## Pending Action Options
+_No pending options._
+<!-- When you offer numbered action options in Slack, record them here so you can
+     resolve a user reply like "1" or "2" to the correct action. Format:
+     1. Draft a followup email to Alice about the Q2 budget meeting
+     2. Add meeting action items to pending tasks
+     Clear this section after the user picks an option or after the next full pulse. -->
+
 ## Inbox Zero Tracker
 _No inbox items tracked yet._
 

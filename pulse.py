@@ -116,6 +116,41 @@ def ensure_runtime_files() -> None:
         log("Initialized knowledge/index.md from template")
 
 
+def send_blocks_direct(config: dict, channel_id: str, text: str, blocks: list) -> bool:
+    """Fallback: post Block Kit message directly via Slack API if MCP tool rejects blocks."""
+    token = config.get("slack_bot_token", "")
+    if not token:
+        log("WARN: slack_bot_token not set — cannot send Block Kit message directly")
+        return False
+    import urllib.request
+    import urllib.error
+
+    data = json.dumps({
+        "channel": channel_id,
+        "text": text,
+        "blocks": blocks,
+    }).encode()
+    req = urllib.request.Request(
+        "https://slack.com/api/chat.postMessage",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            result = json.loads(resp.read())
+            if result.get("ok"):
+                log(f"SLACK DIRECT SEND OK: channel={channel_id} (Block Kit fallback)")
+                return True
+            log(f"WARN: Slack API error: {result.get('error')}")
+            return False
+    except urllib.error.URLError as e:
+        log(f"WARN: Slack API request failed: {e}")
+        return False
+
+
 def _short_text(value: object, limit: int = 160) -> str:
     text = str(value or "").replace("\n", " ").strip()
     return text if len(text) <= limit else text[:limit] + "..."
@@ -193,9 +228,11 @@ def run_claude(
                 if tool_name in SLACK_OUTBOUND_TOOLS:
                     channel = tool_input.get("channel_id", "?")
                     text_preview = tool_input.get("text") or tool_input.get("message") or ""
+                    has_blocks = "blocks" in tool_input
                     log(
                         "SLACK OUTBOUND START: "
-                        f"channel={channel} tool={tool_name} text={_short_text(text_preview)}"
+                        f"channel={channel} tool={tool_name} "
+                        f"has_blocks={has_blocks} text={_short_text(text_preview)}"
                     )
 
         elif event_type == "user":
@@ -214,6 +251,15 @@ def run_claude(
                 if tool_name in SLACK_OUTBOUND_TOOLS:
                     channel = tool_input.get("channel_id", "?")
                     log(f"SLACK OUTBOUND END: channel={channel} tool={tool_name} status={status}")
+                    # If the MCP tool rejected a blocks-bearing message, send blocks directly
+                    if is_error and tool_input.get("blocks"):
+                        log("SLACK BLOCKS FALLBACK: MCP tool rejected blocks, trying direct API")
+                        send_blocks_direct(
+                            config,
+                            tool_input.get("channel_id", ""),
+                            tool_input.get("text", ""),
+                            tool_input["blocks"],
+                        )
 
         elif event_type == "result":
             result_text = str(event.get("result", ""))

@@ -22,3 +22,7 @@ sources:
 claude_command: "claude"
 claude_model: "sonnet"
 claude_timeout_seconds: 300
+
+# Slack bot token (optional — used as fallback if MCP tool rejects Block Kit blocks)
+# Get this from your Slack app's OAuth & Permissions page (xoxb-...)
+slack_bot_token: ""
