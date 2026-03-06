@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roald — Companion Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <h1>Roald</h1>
+      <span class="subtitle">Companion Dashboard</span>
+    </div>
+    <div class="header-right">
+      <span id="status-badge" class="badge badge-offline">Checking...</span>
+      <span id="clock" class="clock"></span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="mind">Mind</button>
+    <button class="tab" data-tab="knowledge">Knowledge</button>
+    <button class="tab" data-tab="logs">Logs</button>
+    <button class="tab" data-tab="config">Config</button>
+  </nav>
+
+  <!-- OVERVIEW TAB -->
+  <main id="tab-overview" class="tab-content active">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-total-pulses">—</div>
+        <div class="stat-label">Total Pulses</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-full-pulses">—</div>
+        <div class="stat-label">Full Pulses</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-reactive-pulses">—</div>
+        <div class="stat-label">Reactive Pulses</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-tool-calls">—</div>
+        <div class="stat-label">Tool Calls</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-slack-sent">—</div>
+        <div class="stat-label">Slack Messages</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-errors">—</div>
+        <div class="stat-label">Errors</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <section class="card">
+        <h2>Companion Status</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="status-label">Process</span>
+            <span id="status-process" class="status-value">—</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Last Pulse</span>
+            <span id="status-last-pulse" class="status-value">—</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Pulse Lock</span>
+            <span id="status-lock" class="status-value">—</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Mind File</span>
+            <span id="status-mind" class="status-value">—</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Sources</h2>
+        <div id="sources-list" class="sources-list">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card">
+        <h2>Active Context</h2>
+        <div id="active-context" class="content-block">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Pending Tasks</h2>
+        <div id="pending-tasks" class="content-block">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="card">
+        <h2>Inbox Zero Tracker</h2>
+        <div id="inbox-tracker" class="content-block">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Recent Events</h2>
+        <div id="recent-events" class="content-block">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- MIND TAB -->
+  <main id="tab-mind" class="tab-content">
+    <section class="card full-width">
+      <div class="card-header">
+        <h2>mind.md — Working Memory</h2>
+        <button id="refresh-mind" class="btn btn-sm">Refresh</button>
+      </div>
+      <pre id="mind-raw" class="code-block">Loading...</pre>
+    </section>
+  </main>
+
+  <!-- KNOWLEDGE TAB -->
+  <main id="tab-knowledge" class="tab-content">
+    <div class="grid-3">
+      <section class="card">
+        <h2>Meetings</h2>
+        <div id="knowledge-meetings" class="file-list">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Emails</h2>
+        <div id="knowledge-emails" class="file-list">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Notes</h2>
+        <div id="knowledge-notes" class="file-list">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+    </div>
+
+    <section class="card full-width" id="knowledge-preview-card" style="display:none">
+      <div class="card-header">
+        <h2 id="knowledge-preview-title">File Preview</h2>
+        <button id="close-preview" class="btn btn-sm">Close</button>
+      </div>
+      <pre id="knowledge-preview" class="code-block"></pre>
+    </section>
+
+    <section class="card full-width">
+      <h2>Knowledge Index</h2>
+      <div id="knowledge-index" class="content-block">
+        <p class="muted">Loading...</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- LOGS TAB -->
+  <main id="tab-logs" class="tab-content">
+    <section class="card full-width">
+      <div class="card-header">
+        <h2>Pulse Log</h2>
+        <div class="log-controls">
+          <label>Lines: <select id="log-lines">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+          </select></label>
+          <label><input type="checkbox" id="log-autoscroll" checked> Auto-scroll</label>
+          <button id="refresh-logs" class="btn btn-sm">Refresh</button>
+        </div>
+      </div>
+      <div id="log-output" class="log-viewer"></div>
+    </section>
+  </main>
+
+  <!-- CONFIG TAB -->
+  <main id="tab-config" class="tab-content">
+    <div class="grid-2">
+      <section class="card">
+        <h2>Configuration</h2>
+        <div id="config-display" class="config-grid">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Next Pulse Instructions</h2>
+        <div id="next-instructions" class="content-block">
+          <p class="muted">Loading...</p>
+        </div>
+        <h2 style="margin-top:1.5rem">Preferences</h2>
+        <div id="preferences" class="content-block">
+          <p class="muted">Loading...</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <span>Auto-refresh: <strong id="refresh-countdown">10</strong>s</span>
+    <span>|</span>
+    <span id="last-updated">Never updated</span>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
