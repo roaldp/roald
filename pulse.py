@@ -21,7 +21,11 @@ MIND_PATH = BASE_DIR / "mind.md"
 KNOWLEDGE_DIR = BASE_DIR / "knowledge"
 KNOWLEDGE_INDEX_PATH = KNOWLEDGE_DIR / "index.md"
 LOCK_PATH = BASE_DIR / "logs" / ".pulse_lock"
+UPDATE_PENDING_PATH = BASE_DIR / "logs" / ".update_pending"
+SKIP_MARKER_PATH = BASE_DIR / "logs" / ".update_skipped_at"
+LAST_GOOD_COMMIT_PATH = BASE_DIR / "logs" / ".last_good_commit"
 LOG_PATH = BASE_DIR / "logs" / "pulse.log"
+RESTART_EXIT_CODE = 42
 PROMPT_FULL = BASE_DIR / "prompts" / "pulse_full.md"
 PROMPT_ONBOARDING = BASE_DIR / "prompts" / "pulse_onboarding.md"
 PROMPT_REACTIVE = BASE_DIR / "prompts" / "pulse_reactive.md"
@@ -54,6 +58,49 @@ def is_claude_echo_message(text: str) -> bool:
 def load_config() -> dict:
     with open(CONFIG_PATH, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+CONFIG_KEY_RENAMES = {
+    "slack_dm_channel_id": "slack_channel_id",
+}
+
+TEMPLATE_PATH = BASE_DIR / "config.template.yaml"
+
+
+def migrate_config(config: dict) -> dict:
+    """Ensure user config has all keys from template, preserving user values."""
+    if not TEMPLATE_PATH.exists():
+        return config
+
+    template = yaml.safe_load(TEMPLATE_PATH.read_text(encoding="utf-8"))
+    changed = False
+
+    # Handle key renames
+    for old_key, new_key in CONFIG_KEY_RENAMES.items():
+        if old_key in config and new_key not in config:
+            config[new_key] = config.pop(old_key)
+            changed = True
+            log(f"Config migrated: renamed '{old_key}' -> '{new_key}'")
+
+    # Merge missing keys from template (non-destructive)
+    for key, default_value in template.items():
+        if key not in config:
+            config[key] = default_value
+            changed = True
+            log(f"Config migrated: added '{key}' with default value")
+        elif isinstance(default_value, dict) and isinstance(config.get(key), dict):
+            for sub_key, sub_default in default_value.items():
+                if sub_key not in config[key]:
+                    config[key][sub_key] = sub_default
+                    changed = True
+                    log(f"Config migrated: added '{key}.{sub_key}' with default value")
+
+    if changed:
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            yaml.safe_dump(config, f, sort_keys=False)
+        log("Config migration complete — config.yaml updated")
+
+    return config
 
 
 def now_str() -> str:
@@ -300,6 +347,8 @@ async def slack_loop(config: dict) -> None:
                     f"channel={channel_id} user={msg_user or '?'} ts={msg.get('ts', '?')} "
                     f"text={_short_text(user_text)}"
                 )
+                if await handle_update_command(config, user_text):
+                    continue
                 await run_reactive_pulse(config, user_text)
 
             last_ts = newest_ts
@@ -343,6 +392,260 @@ def refresh_mcp_inventory() -> None:
         )
     except Exception as e:
         log(f"MCP inventory refresh skipped: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Auto-update helpers
+# ---------------------------------------------------------------------------
+
+def check_for_updates(config: dict) -> dict | None:
+    """Check upstream for new commits. Returns info dict or None if up-to-date."""
+    branch = config.get("auto_update", {}).get("branch", "main")
+    try:
+        subprocess.run(
+            ["git", "fetch", "origin", branch],
+            capture_output=True, text=True,
+            cwd=str(BASE_DIR), timeout=30,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        log("Update check: git fetch failed (no network?)")
+        return None
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-list", f"HEAD..origin/{branch}", "--count"],
+            capture_output=True, text=True,
+            cwd=str(BASE_DIR), timeout=10,
+        )
+        count = int(result.stdout.strip())
+        if count == 0:
+            return None
+    except Exception:
+        return None
+
+    try:
+        result = subprocess.run(
+            ["git", "log", f"HEAD..origin/{branch}", "--oneline", "--no-decorate"],
+            capture_output=True, text=True,
+            cwd=str(BASE_DIR), timeout=10,
+        )
+        commits = result.stdout.strip()
+    except Exception:
+        commits = ""
+
+    return {"count": count, "branch": branch, "commits": commits}
+
+
+def apply_update(config: dict, force: bool = False) -> str:
+    """Pull latest changes. Returns 'ok', 'dirty', 'diverged', or 'error'."""
+    branch = config.get("auto_update", {}).get("branch", "main")
+
+    if not force:
+        try:
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True, text=True,
+                cwd=str(BASE_DIR), timeout=10,
+            )
+            dirty = [l for l in result.stdout.strip().splitlines() if l and not l.startswith("??")]
+            if dirty:
+                log(f"Update aborted: uncommitted tracked changes: {dirty}")
+                return "dirty"
+        except Exception as e:
+            log(f"Update aborted: could not check git status: {e}")
+            return "error"
+
+    if force:
+        try:
+            subprocess.run(
+                ["git", "fetch", "origin", branch],
+                capture_output=True, text=True,
+                cwd=str(BASE_DIR), timeout=30,
+            )
+            result = subprocess.run(
+                ["git", "reset", "--hard", f"origin/{branch}"],
+                capture_output=True, text=True,
+                cwd=str(BASE_DIR), timeout=30,
+            )
+            if result.returncode != 0:
+                log(f"Force update failed: {result.stderr.strip()}")
+                return "error"
+        except subprocess.TimeoutExpired:
+            log("Force update failed: timed out")
+            return "error"
+    else:
+        try:
+            result = subprocess.run(
+                ["git", "pull", "origin", branch, "--ff-only"],
+                capture_output=True, text=True,
+                cwd=str(BASE_DIR), timeout=60,
+            )
+            if result.returncode != 0:
+                stderr = result.stderr.strip().lower()
+                if "not possible to fast-forward" in stderr or "non-fast-forward" in stderr:
+                    log(f"Update failed: branch has diverged from origin/{branch}")
+                    return "diverged"
+                log(f"Update failed: {result.stderr.strip()}")
+                return "error"
+        except subprocess.TimeoutExpired:
+            log("Update failed: git pull timed out")
+            return "error"
+
+    log(f"Update applied from origin/{branch}")
+    SKIP_MARKER_PATH.unlink(missing_ok=True)
+    return "ok"
+
+
+def _send_slack_message(config: dict, message: str) -> None:
+    """Send a simple Slack message to the configured channel."""
+    channel = slack_channel(config)
+    prompt = f"Send this exact message to Slack channel {channel}:\n\n{message}"
+    try:
+        run_claude(
+            prompt, config,
+            allowed_tools="mcp__claude_ai_Slack__slack_send_message",
+            operation="update_slack_message",
+        )
+    except Exception as e:
+        log(f"Failed to send update Slack message: {e}")
+
+
+def notify_update_available(config: dict, info: dict) -> None:
+    """Send a friendly, non-technical Slack DM about available updates."""
+    count = info["count"]
+    commits = info.get("commits", "")
+
+    # Try to extract a headline from the first commit message
+    headline = ""
+    if commits:
+        first_line = commits.splitlines()[0]
+        # Strip the short hash prefix (e.g. "a1b2c3d Fix something" -> "Fix something")
+        parts = first_line.split(" ", 1)
+        if len(parts) == 2:
+            headline = parts[1]
+
+    msg = (
+        f"Hey — there's a new version available"
+        f" ({count} update{'s' if count != 1 else ''})."
+        f" Want me to update? Just say *update* when you're ready, or *skip* to ignore."
+    )
+    if headline:
+        msg += f"\n\n_Main change: {headline}_"
+
+    _send_slack_message(config, msg)
+
+
+def _signal_restart() -> None:
+    """Exit with restart code so start.sh relaunches with new code."""
+    log("Restart signal: exiting for relaunch")
+    release_lock()
+    UPDATE_PENDING_PATH.unlink(missing_ok=True)
+    sys.exit(RESTART_EXIT_CODE)
+
+
+async def handle_update_command(config: dict, user_text: str) -> bool:
+    """Handle update-related Slack commands. Returns True if handled."""
+    lowered = user_text.lower().strip()
+
+    is_force = lowered in ("force update", "force-update", "yes force update")
+
+    if is_force or lowered in ("update", "yes update", "apply update", "yes, update"):
+        if not UPDATE_PENDING_PATH.exists() and not is_force:
+            return False  # no pending update, pass through to reactive pulse
+
+        if LOCK_PATH.exists():
+            log("Update deferred: pulse is running")
+            _send_slack_message(config, "I'll apply the update once the current pulse finishes.")
+            return True
+
+        status = apply_update(config, force=is_force)
+        if status == "ok":
+            _send_slack_message(config, "Update applied! Restarting now — I'll be back in a moment.")
+            _signal_restart()
+        elif status == "diverged":
+            _send_slack_message(
+                config,
+                "Your local code has diverged from the main branch — a normal update can't apply cleanly. "
+                "If you haven't made intentional local changes, say *force update* to reset to the latest version.",
+            )
+        elif status == "dirty":
+            _send_slack_message(
+                config,
+                "There are uncommitted changes to tracked files blocking the update. "
+                "Commit or stash them, then try again.",
+            )
+        else:
+            _send_slack_message(config, "Something went wrong with the update — check the logs for details.")
+        return True
+
+    elif lowered in ("skip", "skip update", "dismiss update", "not now"):
+        if UPDATE_PENDING_PATH.exists():
+            UPDATE_PENDING_PATH.unlink(missing_ok=True)
+            # Record which remote commit was skipped so we don't re-notify
+            branch = config.get("auto_update", {}).get("branch", "main")
+            try:
+                result = subprocess.run(
+                    ["git", "rev-parse", f"origin/{branch}"],
+                    capture_output=True, text=True,
+                    cwd=str(BASE_DIR), timeout=5,
+                )
+                if result.returncode == 0:
+                    SKIP_MARKER_PATH.write_text(result.stdout.strip())
+            except Exception:
+                pass
+            _send_slack_message(config, "Got it, skipped. I'll let you know when there's something new.")
+            return True
+
+    return False
+
+
+async def update_loop(config: dict) -> None:
+    """Periodically check for updates and notify the user."""
+    update_cfg = config.get("auto_update", {})
+    if not update_cfg.get("enabled", True):
+        log("Auto-update disabled in config")
+        return
+
+    interval_hours = update_cfg.get("check_interval_hours", 12)
+    interval_seconds = interval_hours * 3600
+
+    log(f"Update loop started (interval={interval_hours}h)")
+
+    # Wait before first check so the initial full pulse can complete
+    await asyncio.sleep(min(interval_seconds, 300))
+
+    while True:
+        try:
+            info = check_for_updates(config)
+            if info:
+                # Check if user already skipped this exact version
+                branch = info["branch"]
+                skipped = False
+                if SKIP_MARKER_PATH.exists():
+                    skipped_hash = SKIP_MARKER_PATH.read_text().strip()
+                    try:
+                        result = subprocess.run(
+                            ["git", "rev-parse", f"origin/{branch}"],
+                            capture_output=True, text=True,
+                            cwd=str(BASE_DIR), timeout=5,
+                        )
+                        if result.returncode == 0 and result.stdout.strip() == skipped_hash:
+                            skipped = True
+                    except Exception:
+                        pass
+
+                if skipped:
+                    log("Update check: skipped (user dismissed this version)")
+                else:
+                    log(f"Update available: {info['count']} commits on {info['branch']}")
+                    UPDATE_PENDING_PATH.write_text(json.dumps(info), encoding="utf-8")
+                    notify_update_available(config, info)
+            else:
+                log("Update check: up to date")
+        except Exception as e:
+            log(f"Update loop error: {e}")
+
+        await asyncio.sleep(interval_seconds)
 
 
 async def run_full_pulse(config: dict) -> None:
@@ -408,8 +711,22 @@ def slack_channel(config: dict) -> str:
 async def main(args: argparse.Namespace) -> None:
     ensure_runtime_files()
     config = load_config()
+    config = migrate_config(config)
     validate_config(config)
     log("Pulse starting up")
+
+    # Record current commit for rollback safety
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True, text=True,
+            cwd=str(BASE_DIR), timeout=5,
+        )
+        if result.returncode == 0:
+            LAST_GOOD_COMMIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            LAST_GOOD_COMMIT_PATH.write_text(result.stdout.strip())
+    except Exception:
+        pass
 
     # Ensure lock is clear on startup (stale lock from previous crash)
     if LOCK_PATH.exists():
@@ -427,6 +744,7 @@ async def main(args: argparse.Namespace) -> None:
     await asyncio.gather(
         timer_loop(config),
         slack_loop(config),
+        update_loop(config),
     )
 
 
