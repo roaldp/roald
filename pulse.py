@@ -331,7 +331,7 @@ async def slack_loop(config: dict) -> None:
             if active_pulse and active_pulse.done():
                 exc = active_pulse.exception() if not active_pulse.cancelled() else None
                 if exc:
-                    log(f"Background pulse failed: {exc}")
+                    log(f"PULSE REACTIVE ERROR: background task: {exc}")
                 active_pulse = None
 
             messages = poll_slack_messages(config, channel_id)
@@ -378,7 +378,7 @@ async def slack_loop(config: dict) -> None:
 
                 # Phase 2: Full reactive pulse (non-blocking background task)
                 if active_pulse and not active_pulse.done():
-                    log("Skipping pulse — previous pulse still running")
+                    log("PULSE REACTIVE SKIP: previous still running")
                 else:
                     active_pulse = asyncio.create_task(
                         run_reactive_pulse(config, user_text, channel_id=channel_id)
@@ -438,12 +438,12 @@ def send_slack_ack(config: dict, channel_id: str, user_message: str) -> None:
 
 async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = "") -> None:
     if not acquire_lock():
-        log("Reactive pulse skipped — another pulse is running")
+        log("PULSE REACTIVE SKIP: locked")
         return
     try:
-        log("Running reactive pulse...")
+        log("PULSE REACTIVE START")
         if len(user_message) > MAX_USER_MESSAGE_LENGTH:
-            log(f"User message rejected: {len(user_message)} chars exceeds {MAX_USER_MESSAGE_LENGTH} limit")
+            log(f"PULSE REACTIVE REJECT: length={len(user_message)} max={MAX_USER_MESSAGE_LENGTH}")
             if channel_id:
                 send_slack_message(config, channel_id, MESSAGE_TOO_LONG_REPLY)
             return
@@ -454,9 +454,9 @@ async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = 
             .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
         )
         output = run_claude(user_message, config, operation="reactive_pulse", system_prompt=system)
-        log(f"Reactive pulse complete. Output length: {len(output)} chars")
+        log(f"PULSE REACTIVE END: output_len={len(output)}")
     except Exception as e:
-        log(f"Reactive pulse error: {e}")
+        log(f"PULSE REACTIVE ERROR: {e}")
     finally:
         release_lock()
 
@@ -733,13 +733,14 @@ async def update_loop(config: dict) -> None:
 
 async def run_full_pulse(config: dict) -> None:
     if not acquire_lock():
-        log("Full pulse skipped — another pulse is running")
+        log("PULSE FULL SKIP: locked")
         return
     try:
         refresh_mcp_inventory()
         first_run = is_first_run()
         prompt_path = PROMPT_ONBOARDING if (first_run and PROMPT_ONBOARDING.exists()) else PROMPT_FULL
-        log(f"Running {'onboarding' if first_run and PROMPT_ONBOARDING.exists() else 'full'} pulse...")
+        pulse_type = "onboarding" if first_run and PROMPT_ONBOARDING.exists() else "full"
+        log(f"PULSE FULL START: type={pulse_type}")
         template = prompt_path.read_text()
         prompt = (
             template
@@ -747,9 +748,9 @@ async def run_full_pulse(config: dict) -> None:
             .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
         )
         output = run_claude(prompt, config, operation="full_pulse")
-        log(f"Full pulse complete. Output length: {len(output)} chars")
+        log(f"PULSE FULL END: output_len={len(output)}")
     except Exception as e:
-        log(f"Full pulse error: {e}")
+        log(f"PULSE FULL ERROR: {e}")
     finally:
         release_lock()
 
