@@ -6,6 +6,8 @@ import asyncio
 import collections
 import json
 import os
+import re
+import secrets
 import subprocess
 import sys
 import time
@@ -447,6 +449,16 @@ def send_slack_ack(config: dict, channel_id: str, user_message: str) -> None:
         log(f"SLACK ACK FAIL: channel={channel_id} error={e}")
 
 
+def _datamark(text: str, marker: str = "^") -> str:
+    """Apply datamarking: replace whitespace with a marker token.
+
+    This is a spotlighting technique (Microsoft Research) that helps the LLM
+    distinguish untrusted data from system instructions by making the data
+    visually distinct.  ASR drops from ~50% to <3% with this technique.
+    """
+    return re.sub(r"\s+", marker, text)
+
+
 async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = "") -> None:
     if not acquire_lock():
         log("PULSE REACTIVE SKIP: locked")
@@ -459,12 +471,24 @@ async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = 
                 send_slack_message(config, channel_id, MESSAGE_TOO_LONG_REPLY)
             return
         template = PROMPT_REACTIVE.read_text()
+
+        # Generate a per-invocation salt for XML tag boundaries.
+        # This prevents attackers from guessing/spoofing the delimiter tags.
+        salt = secrets.token_hex(4)
+
         system = (
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
             .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
+            .replace("{{SALT}}", salt)
         )
-        output = run_claude(user_message, config, operation="reactive_pulse", system_prompt=system)
+
+        # Datamark the user message: replace whitespace with ^ so the model
+        # can visually distinguish it from system instructions.
+        marked_message = _datamark(user_message)
+        prompt = f"<user-message-{salt}>\n{marked_message}\n</user-message-{salt}>"
+
+        output = run_claude(prompt, config, operation="reactive_pulse", system_prompt=system)
         log(f"PULSE REACTIVE END: output_len={len(output)}")
     except Exception as e:
         log(f"PULSE REACTIVE ERROR: {e}")
