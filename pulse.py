@@ -359,7 +359,7 @@ async def slack_loop(config: dict) -> None:
                 )
                 if await handle_update_command(config, user_text):
                     continue
-                await run_reactive_pulse(config, user_text)
+                await run_reactive_pulse(config, user_text, channel_id=channel_id)
 
             last_ts = newest_ts
 
@@ -368,16 +368,37 @@ async def slack_loop(config: dict) -> None:
 
 
 MAX_USER_MESSAGE_LENGTH = 2000
+MESSAGE_TOO_LONG_REPLY = (
+    "Your message is too long for me to process safely. "
+    "If you want to share file context, just point me to the file — "
+    "drop a link or file path and I'll read it directly."
+)
 
-async def run_reactive_pulse(config: dict, user_message: str) -> None:
+
+def send_slack_reply(config: dict, channel_id: str, text: str) -> None:
+    """Send a short Slack reply to a specific channel via Claude."""
+    prompt = f'Send this exact message to Slack channel {channel_id}: "{text}"'
+    try:
+        run_claude(
+            prompt, config,
+            allowed_tools="mcp__claude_ai_Slack__slack_send_message",
+            operation="slack_reply",
+        )
+    except Exception as e:
+        log(f"Failed to send Slack reply: {e}")
+
+
+async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = "") -> None:
     if not acquire_lock():
         log("Reactive pulse skipped — another pulse is running")
         return
     try:
         log("Running reactive pulse...")
         if len(user_message) > MAX_USER_MESSAGE_LENGTH:
-            log(f"User message truncated from {len(user_message)} to {MAX_USER_MESSAGE_LENGTH} chars")
-            user_message = user_message[:MAX_USER_MESSAGE_LENGTH]
+            log(f"User message rejected: {len(user_message)} chars exceeds {MAX_USER_MESSAGE_LENGTH} limit")
+            if channel_id:
+                send_slack_reply(config, channel_id, MESSAGE_TOO_LONG_REPLY)
+            return
         template = PROMPT_REACTIVE.read_text()
         system = (
             template
