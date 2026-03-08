@@ -54,6 +54,12 @@ Check all enabled sources for updates since last pulse:
 **Calendar:**
 - List today's remaining events and tomorrow's events
 - Flag any conflicts or prep needed
+- **Meeting prep (for meetings starting within 2 hours):**
+  1. Check `knowledge/index.md` for previous meetings with the same attendees.
+  2. Check `knowledge/emails/` for recent email threads with attendees.
+  3. Check People section in `knowledge/index.md` for context on each attendee.
+  4. Compile a brief prep note: who you're meeting, last interaction, open items from previous meetings, recent email context.
+  5. Store prep in `knowledge/notes/YYYY-MM-DD-prep-<slug>.md`.
 
 **Google Drive Transcripts:**
 - Read the "Source Configuration" section in `mind.md` for current Google Drive status.
@@ -63,7 +69,7 @@ Check all enabled sources for updates since last pulse:
 1. Check `config.yaml` for a pre-set `google_drive_transcript_folder_id`. If set, store it in mind.md Source Configuration (status `active`) and proceed to monitoring below.
 2. Otherwise, use Google Drive tools to search for a folder named "Fireflies", "Fireflies.ai Notetaker", or "Meeting Transcripts".
 3. If found: update `config.yaml` with the folder ID, set Source Configuration status to `active`, and proceed to monitoring.
-4. If NOT found: send a Slack DM asking: "I couldn't auto-discover your Fireflies transcript folder in Google Drive. Could you share the folder name or link?" Set status to `awaiting_user_input`. Skip transcript processing this pulse.
+4. If NOT found: send a Slack DM asking: "Do you use a meeting recorder (like Fireflies) that saves transcripts to Google Drive? If so, share the folder name or link. If not, just say 'skip transcripts' and I won't ask again." Set status to `awaiting_user_input`. Skip transcript processing this pulse.
 5. If Google Drive MCP tools are unavailable (tool errors): set status to `unavailable` with note "MCP tools not enabled". Skip silently — do not notify the user.
 
 *Monitoring flow* (folder ID known AND status is `active`):
@@ -84,6 +90,7 @@ Check all enabled sources for updates since last pulse:
 - Save detailed content to `knowledge/` files (meetings/, emails/, notes/)
 - Update `knowledge/index.md` with new entries
 - Extract action items and add to pending tasks
+- **People tracking:** When processing emails or meeting transcripts, extract mentioned people: name, organization, role (if mentioned), last interaction date, and context. Check the People section of `knowledge/index.md`. If the person is new, add them. If existing, update "Last seen" date and add new context. Format: `- **[Name]** ([Org]) — last: YYYY-MM-DD — [brief context]`
 - **Deduplication (Fireflies + Drive):** When saving meeting content, check if `knowledge/meetings/` already has a file for the same meeting (match by date + participant names). Fireflies provides structured summaries; Drive provides full transcripts. If both exist for the same meeting, keep structured sections at the top and append `## Full Transcript` from Drive. Track sources in metadata (e.g., `**Source:** Fireflies + Google Drive`).
 - **Source metadata:** When combining content from multiple sources for the same meeting, add a `**Combined from:** Fireflies (structured summary) + Google Drive (full transcript)` line below the title. When enriching an existing file, update `**Source:**` to reflect both and add `**Last enriched:** [timestamp]`.
 
@@ -98,11 +105,25 @@ Adjust behavior based on current local time:
 | 17:00–18:00 | **Inbox zero push** — for each open email, draft a concrete reply or delegation. Present ready-to-send solutions. |
 | After 18:00 | Only genuinely urgent items. No noise. |
 
-### 5. Inbox Zero Push (if after 15:00)
-For each unprocessed email:
-- Draft the reply OR propose delegation with specific person
-- Present as ready-to-send, not as a reminder
-- Example: "3 emails still open — I've drafted replies for 2, the 3rd needs your call on budget. Want me to send the drafts?"
+**Role-based priority:** Check mind.md Preferences for the user's stated role/priorities. Adjust what gets surfaced:
+- Customer success / account management: lower threshold for customer emails, always prep for customer calls, prioritize follow-ups
+- VC / investing: prioritize meeting transcripts and people tracking, flag relationship follow-ups, surface deal-related updates
+- Founder / CEO: prioritize calendar management, hiring-related emails, investor communications, customer onboarding updates
+- If no role is set: use balanced defaults
+
+### 5. Inbox Zero Push (if after 14:00)
+**Categorize each unprocessed email:**
+- **Quick reply** (< 2 min to answer): Draft the reply immediately.
+- **Needs input**: Flag the specific decision or information needed from the user.
+- **Delegatable**: Suggest who to forward to and draft the forward.
+- **FYI only**: Mark as processed, no action needed.
+
+**Present as a batch:**
+Example: "4 emails need attention:
+1. Reply drafted for Sarah (Acme) — asking about timeline
+2. Board deck review — needs your decision on Q1 numbers
+3. Forward to Alex: design review feedback — draft ready
+4. Newsletter from HBR — no action needed, filed"
 
 ### 6. Update Mind
 - Update `mind.md` with:
@@ -116,10 +137,13 @@ For each unprocessed email:
 ### 7. Notify User (Slack DM)
 Only send a Slack DM for:
 - Urgent or time-sensitive items (meeting in <1hr, deadline today)
+- Meeting prep available for an upcoming meeting (notify ~60 min before with prep summary)
 - Task completions worth reporting
 - EOD inbox nudge (with drafted solutions attached)
 
 Do NOT notify for routine updates — those go silently into mind.md.
+
+**First-week nudge:** If mind.md Recent Events contains fewer than 5 entries AND Pending Tasks has no delegated tasks, append to any Slack notification: "Tip: you can DM me tasks like 'draft a reply to Sarah's email' or 'prep me for my 2pm meeting'." Stop including this nudge once the user has delegated at least one task.
 
 ### 8. Error & Retry Behavior
 - **Silent retry:** If a source scan fails (API timeout, rate limit, temporary error), log the error in that source's Notes column in Source Configuration with a timestamp. Do NOT notify the user. Retry on the next pulse automatically.
