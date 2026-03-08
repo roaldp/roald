@@ -3,6 +3,7 @@
 # Pulse intervals (defaults)
 full_pulse_interval_minutes: 30
 slack_poll_interval_seconds: 1
+slack_poll_model: "haiku"          # cheap/fast model for polling + ack
 
 # User identity (fill locally in config.yaml; do not commit secrets or IDs)
 slack_user_id: ""   # Required. Your Slack user ID, e.g. U01XXXXXXX

@@ -200,6 +200,7 @@ def run_claude(
     allowed_tools: str = ALLOWED_TOOLS,
     operation: str = "claude_run",
     system_prompt: Optional[str] = None,
+    model_override: Optional[str] = None,
 ) -> str:
     log(f"EXEC START: {operation}")
     started = time.monotonic()
@@ -212,7 +213,7 @@ def run_claude(
     ]
     if system_prompt:
         cmd += ["--system-prompt", system_prompt]
-    model = config.get("claude_model", "")
+    model = model_override or config.get("claude_model", "")
     if model:
         cmd += ["--model", model]
     # Clear CLAUDECODE env var to allow spawning Claude from within a Claude session
@@ -292,17 +293,18 @@ def run_claude(
 
 
 def poll_slack_messages(config: dict, channel_id: str) -> list[dict]:
+    fast_model = config.get("slack_poll_model", "haiku")
     prompt = (
-        f"Use slack_read_channel to read the last 5 messages from channel {channel_id}. "
-        "Return ONLY a JSON array of objects with fields: ts, user, text. No other text."
+        f"Read channel {channel_id} (last 5). "
+        "Reply ONLY with JSON: [{\"ts\":\"...\",\"user\":\"...\",\"text\":\"...\"}]"
     )
     text = run_claude(
         prompt,
         config,
         allowed_tools="mcp__claude_ai_Slack__slack_read_channel",
-        operation=f"poll_slack_messages[{channel_id}]",
+        operation=f"poll[{channel_id}]",
+        model_override=fast_model,
     )
-    # Extract JSON array from the response text
     start = text.find("[")
     end = text.rfind("]") + 1
     if start == -1 or end == 0:
@@ -314,16 +316,24 @@ def poll_slack_messages(config: dict, channel_id: str) -> list[dict]:
 
 
 async def slack_loop(config: dict) -> None:
-    interval = config.get("slack_poll_interval_seconds", 5)
+    interval = config.get("slack_poll_interval_seconds", 1)
     user_id = str(config.get("slack_user_id", "")).strip()
     channel_id = slack_channel(config)
 
     last_ts: Optional[str] = None
+    active_pulse: Optional[asyncio.Task] = None
     log(f"Slack listener started (channel={channel_id}, interval={interval}s)")
 
     while True:
         await asyncio.sleep(interval)
         try:
+            # Clean up finished pulse task
+            if active_pulse and active_pulse.done():
+                exc = active_pulse.exception() if not active_pulse.cancelled() else None
+                if exc:
+                    log(f"Background pulse failed: {exc}")
+                active_pulse = None
+
             messages = poll_slack_messages(config, channel_id)
             if not messages:
                 continue
@@ -342,7 +352,6 @@ async def slack_loop(config: dict) -> None:
             for msg in sorted(new_messages, key=lambda m: float(m.get("ts", 0))):
                 msg_user = str(msg.get("user", "")).strip()
                 if user_id and msg_user != user_id:
-                    # Avoid triggering reactive pulses on bot/app messages.
                     continue
                 user_text = msg.get("text", "").strip()
                 if is_claude_echo_message(user_text):
@@ -359,7 +368,20 @@ async def slack_loop(config: dict) -> None:
                 )
                 if await handle_update_command(config, user_text):
                     continue
-                await run_reactive_pulse(config, user_text, channel_id=channel_id)
+
+                # Phase 1: Instant context-aware ack (runs in thread to not block loop)
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(
+                    None, send_slack_ack, config, channel_id, user_text
+                )
+
+                # Phase 2: Full reactive pulse (non-blocking background task)
+                if active_pulse and not active_pulse.done():
+                    log("Skipping pulse — previous pulse still running")
+                else:
+                    active_pulse = asyncio.create_task(
+                        run_reactive_pulse(config, user_text, channel_id=channel_id)
+                    )
 
             last_ts = newest_ts
 
@@ -375,17 +397,40 @@ MESSAGE_TOO_LONG_REPLY = (
 )
 
 
-def send_slack_reply(config: dict, channel_id: str, text: str) -> None:
-    """Send a short Slack reply to a specific channel via Claude."""
-    prompt = f'Send this exact message to Slack channel {channel_id}: "{text}"'
+def send_slack_message(config: dict, channel_id: str, text: str) -> None:
+    """Send an exact message to Slack using the fast model."""
+    fast_model = config.get("slack_poll_model", "haiku")
+    prompt = f'Send this exact message to channel {channel_id}: "{text}"'
     try:
         run_claude(
             prompt, config,
             allowed_tools="mcp__claude_ai_Slack__slack_send_message",
-            operation="slack_reply",
+            operation="slack_msg",
+            model_override=fast_model,
         )
     except Exception as e:
-        log(f"Failed to send Slack reply: {e}")
+        log(f"Failed to send Slack message: {e}")
+
+
+def send_slack_ack(config: dict, channel_id: str, user_message: str) -> None:
+    """Send a brief context-aware acknowledgment while the full pulse processes."""
+    fast_model = config.get("slack_poll_model", "haiku")
+    prompt = (
+        f"The user just sent this message: \"{user_message[:200]}\"\n\n"
+        f"Send a brief 1-sentence acknowledgment to Slack channel {channel_id}. "
+        "Show you understood what they need. Keep it under 15 words. "
+        "Be natural and direct — e.g. 'Looking into that now' or 'On it, checking your calendar'. "
+        "Do NOT answer the question, just acknowledge."
+    )
+    try:
+        run_claude(
+            prompt, config,
+            allowed_tools="mcp__claude_ai_Slack__slack_send_message",
+            operation="slack_ack",
+            model_override=fast_model,
+        )
+    except Exception as e:
+        log(f"Failed to send Slack ack: {e}")
 
 
 async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = "") -> None:
@@ -397,7 +442,7 @@ async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = 
         if len(user_message) > MAX_USER_MESSAGE_LENGTH:
             log(f"User message rejected: {len(user_message)} chars exceeds {MAX_USER_MESSAGE_LENGTH} limit")
             if channel_id:
-                send_slack_reply(config, channel_id, MESSAGE_TOO_LONG_REPLY)
+                send_slack_message(config, channel_id, MESSAGE_TOO_LONG_REPLY)
             return
         template = PROMPT_REACTIVE.read_text()
         system = (
