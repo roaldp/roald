@@ -3,6 +3,7 @@
 
 import argparse
 import asyncio
+import collections
 import json
 import os
 import subprocess
@@ -322,17 +323,26 @@ async def slack_loop(config: dict) -> None:
 
     last_ts: Optional[str] = None
     active_pulse: Optional[asyncio.Task] = None
+    pending_queue: collections.deque[str] = collections.deque(maxlen=5)
     log(f"Slack listener started (channel={channel_id}, interval={interval}s)")
 
     while True:
         await asyncio.sleep(interval)
         try:
-            # Clean up finished pulse task
+            # Clean up finished pulse task and drain queue
             if active_pulse and active_pulse.done():
                 exc = active_pulse.exception() if not active_pulse.cancelled() else None
                 if exc:
                     log(f"PULSE REACTIVE ERROR: background task: {exc}")
                 active_pulse = None
+
+                # Start next queued message if any
+                if pending_queue:
+                    queued_text = pending_queue.popleft()
+                    log(f"PULSE REACTIVE DEQUEUE: remaining={len(pending_queue)} text={_short_text(queued_text, 80)}")
+                    active_pulse = asyncio.create_task(
+                        run_reactive_pulse(config, queued_text, channel_id=channel_id)
+                    )
 
             messages = poll_slack_messages(config, channel_id)
             if not messages:
@@ -378,7 +388,8 @@ async def slack_loop(config: dict) -> None:
 
                 # Phase 2: Full reactive pulse (non-blocking background task)
                 if active_pulse and not active_pulse.done():
-                    log("PULSE REACTIVE SKIP: previous still running")
+                    pending_queue.append(user_text)
+                    log(f"PULSE REACTIVE QUEUED: queue_size={len(pending_queue)} text={_short_text(user_text, 80)}")
                 else:
                     active_pulse = asyncio.create_task(
                         run_reactive_pulse(config, user_text, channel_id=channel_id)
