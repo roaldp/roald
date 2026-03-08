@@ -199,6 +199,7 @@ def run_claude(
     config: dict,
     allowed_tools: str = ALLOWED_TOOLS,
     operation: str = "claude_run",
+    system_prompt: Optional[str] = None,
 ) -> str:
     log(f"EXEC START: {operation}")
     started = time.monotonic()
@@ -209,6 +210,8 @@ def run_claude(
         "--output-format", "stream-json",
         "--verbose",
     ]
+    if system_prompt:
+        cmd += ["--system-prompt", system_prompt]
     model = config.get("claude_model", "")
     if model:
         cmd += ["--model", model]
@@ -364,20 +367,24 @@ async def slack_loop(config: dict) -> None:
             log(f"Slack loop error: {e}")
 
 
+MAX_USER_MESSAGE_LENGTH = 2000
+
 async def run_reactive_pulse(config: dict, user_message: str) -> None:
     if not acquire_lock():
         log("Reactive pulse skipped — another pulse is running")
         return
     try:
         log("Running reactive pulse...")
+        if len(user_message) > MAX_USER_MESSAGE_LENGTH:
+            log(f"User message truncated from {len(user_message)} to {MAX_USER_MESSAGE_LENGTH} chars")
+            user_message = user_message[:MAX_USER_MESSAGE_LENGTH]
         template = PROMPT_REACTIVE.read_text()
-        prompt = (
+        system = (
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
-            .replace("{{USER_MESSAGE}}", user_message)
             .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
         )
-        output = run_claude(prompt, config, operation="reactive_pulse")
+        output = run_claude(user_message, config, operation="reactive_pulse", system_prompt=system)
         log(f"Reactive pulse complete. Output length: {len(output)} chars")
     except Exception as e:
         log(f"Reactive pulse error: {e}")
