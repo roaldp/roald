@@ -370,6 +370,7 @@ async def slack_loop(config: dict) -> None:
                     continue
 
                 # Phase 1: Instant context-aware ack (runs in thread to not block loop)
+                log(f"SLACK ACK DISPATCH: channel={channel_id}")
                 loop = asyncio.get_event_loop()
                 loop.run_in_executor(
                     None, send_slack_ack, config, channel_id, user_text
@@ -408,8 +409,9 @@ def send_slack_message(config: dict, channel_id: str, text: str) -> None:
             operation="slack_msg",
             model_override=fast_model,
         )
+        log(f"SLACK OUTBOUND DIRECT: channel={channel_id} text={_short_text(text)}")
     except Exception as e:
-        log(f"Failed to send Slack message: {e}")
+        log(f"SLACK OUTBOUND FAIL: channel={channel_id} error={e}")
 
 
 def send_slack_ack(config: dict, channel_id: str, user_message: str) -> None:
@@ -429,8 +431,9 @@ def send_slack_ack(config: dict, channel_id: str, user_message: str) -> None:
             operation="slack_ack",
             model_override=fast_model,
         )
+        log(f"SLACK ACK SENT: channel={channel_id} for={_short_text(user_message, 80)}")
     except Exception as e:
-        log(f"Failed to send Slack ack: {e}")
+        log(f"SLACK ACK FAIL: channel={channel_id} error={e}")
 
 
 async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = "") -> None:
