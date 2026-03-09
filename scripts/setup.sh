@@ -7,63 +7,108 @@ CONFIG_FILE="$BASE_DIR/config.yaml"
 
 BLOCKERS=0
 ACTIONS=0
+ACTION_ITEMS=()
 WARNINGS=0
-CONFIG_HELPERS_READY=1
 
 ok() {
-  printf '[OK] %s\n' "$1"
+  printf '  ✓ %s\n' "$1"
 }
 
 action_needed() {
   ACTIONS=$((ACTIONS + 1))
-  printf '[ACTION NEEDED] %s\n' "$1"
+  ACTION_ITEMS+=("$1")
+  printf '  → %s\n' "$1"
 }
 
 blocked() {
   BLOCKERS=$((BLOCKERS + 1))
-  printf '[BLOCKED] %s\n' "$1"
+  printf '  ✗ %s\n' "$1"
 }
 
 warn() {
   WARNINGS=$((WARNINGS + 1))
-  printf '[WARN] %s\n' "$1"
+  printf '  ! %s\n' "$1"
 }
 
 exit_blocked_setup() {
-  printf '\nSummary: %d blocked, %d action needed, %d warnings\n' "$BLOCKERS" "$ACTIONS" "$WARNINGS"
-  printf 'Setup cannot continue until blocked items are fixed.\n'
+  printf '\nA few things need fixing before we can start:\n'
+  printf '  See the items marked with ✗ above.\n'
   exit 2
+}
+
+# Pure-bash config helpers — no PyYAML needed for setup
+get_config_value() {
+  local key="$1"
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    return
+  fi
+  local raw
+  raw="$(grep -E "^${key}:" "$CONFIG_FILE" | head -1 | sed 's/^[^:]*: *//')" || true
+  if [[ "$raw" == \"*\"* ]]; then
+    raw="${raw#\"}"
+    raw="${raw%%\"*}"
+  elif [[ "$raw" == \'*\'* ]]; then
+    raw="${raw#\'}"
+    raw="${raw%%\'*}"
+  else
+    raw="$(printf '%s' "$raw" | sed 's/  *#.*//')"
+  fi
+  printf '%s' "$raw"
 }
 
 set_config_value() {
   local key="$1"
   local value="$2"
-  python3 - "$CONFIG_FILE" "$key" "$value" <<'PY'
-import sys
-import yaml
-
-config_path, key, value = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(config_path, encoding="utf-8") as f:
-    data = yaml.safe_load(f) or {}
-
-data[key] = value
-
-with open(config_path, "w", encoding="utf-8") as f:
-    yaml.safe_dump(data, f, sort_keys=False)
-PY
+  if grep -qE "^${key}:" "$CONFIG_FILE" 2>/dev/null; then
+    sed -i '' "s|^${key}:.*|${key}: \"${value}\"|" "$CONFIG_FILE"
+  else
+    echo "${key}: \"${value}\"" >> "$CONFIG_FILE"
+  fi
 }
 
-get_config_value() {
-  local key="$1"
-  python3 - "$CONFIG_FILE" "$key" <<'PY'
-import sys
-import yaml
+detect_timezone() {
+  local tz=""
+  if [[ -L /etc/localtime ]]; then
+    tz="$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')" || true
+  fi
+  if [[ -z "$tz" ]] && command -v python3 >/dev/null 2>&1; then
+    tz="$(python3 -c "
+try:
+    import time
+    if hasattr(time.localtime(), 'tm_zone') and '/' in (time.tzname[0] or ''):
+        print(time.tzname[0])
+    else:
+        from pathlib import Path
+        p = Path('/etc/localtime').resolve()
+        parts = p.parts
+        if 'zoneinfo' in parts:
+            idx = parts.index('zoneinfo')
+            print('/'.join(parts[idx+1:]))
+except Exception:
+    pass
+" 2>/dev/null || true)"
+  fi
+  printf '%s' "$tz"
+}
 
-config_path, key = sys.argv[1], sys.argv[2]
-with open(config_path, encoding="utf-8") as f:
-    data = yaml.safe_load(f) or {}
-print(str(data.get(key, "")))
-PY
+resolve_timezone_alias() {
+  local input="$1"
+  case "$(printf '%s' "$input" | tr '[:upper:]' '[:lower:]')" in
+    est) printf 'America/New_York' ;;
+    cst) printf 'America/Chicago' ;;
+    mst) printf 'America/Denver' ;;
+    pst) printf 'America/Los_Angeles' ;;
+    cet) printf 'Europe/Paris' ;;
+    eet) printf 'Europe/Bucharest' ;;
+    gmt) printf 'Europe/London' ;;
+    bst) printf 'Europe/London' ;;
+    brussels) printf 'Europe/Brussels' ;;
+    london) printf 'Europe/London' ;;
+    paris) printf 'Europe/Paris' ;;
+    amsterdam) printf 'Europe/Amsterdam' ;;
+    berlin) printf 'Europe/Berlin' ;;
+    *) printf '%s' "$input" ;;
+  esac
 }
 
 is_valid_slack_channel_id() {
@@ -83,18 +128,21 @@ normalize_slack_channel_id() {
     return 0
   fi
 
-  warn "config.yaml: slack_channel_id '$current_channel_id' is invalid for polling; clearing it until a real D..., C..., or G... ID is resolved."
+  warn "Slack channel '$current_channel_id' is invalid for polling; clearing it until a real D..., C..., or G... ID is resolved."
   set_config_value slack_channel_id ""
   return 1
 }
 
-printf 'Local Claude Companion setup\n'
-printf 'Project: %s\n\n' "$BASE_DIR"
+printf '\nLocal Claude Companion — Setup\n\n'
+
+# ── Prerequisites ──
+
+printf 'Checking prerequisites...\n'
 
 if command -v claude >/dev/null 2>&1; then
-  ok "Claude CLI found: $(command -v claude)"
+  ok "Claude Code found"
 else
-  blocked "Claude CLI not found. Install Claude Code CLI and ensure 'claude' is on PATH."
+  blocked "Claude Code not found. Install it from https://claude.ai/download and make sure 'claude' is in your PATH."
 fi
 
 if command -v python3 >/dev/null 2>&1; then
@@ -103,59 +151,71 @@ import sys
 raise SystemExit(0 if sys.version_info >= (3, 9) else 1)
 PY
   then
-    ok "Python version is >= 3.9"
+    ok "Python 3.9+ found"
   else
-    blocked "Python 3.9+ is required."
-    CONFIG_HELPERS_READY=0
+    blocked "Python 3.9+ is required. You have an older version. On Mac: brew install python3"
   fi
 else
-  blocked "python3 not found."
-  CONFIG_HELPERS_READY=0
-fi
-
-if command -v python3 >/dev/null 2>&1; then
-  if python3 - <<'PY' >/dev/null 2>&1
-import yaml
-PY
-  then
-    ok "PyYAML installed"
-  else
-    blocked "PyYAML missing. Run: python3 -m pip install pyyaml"
-    CONFIG_HELPERS_READY=0
-  fi
+  blocked "Python 3 not found. On Mac: brew install python3 — or download from python.org"
 fi
 
 if [[ ! -f "$CONFIG_TEMPLATE" ]]; then
-  blocked "Missing config template: $CONFIG_TEMPLATE"
+  blocked "Missing config template — the repo may be incomplete"
 else
-  ok "Found config template"
-fi
-
-if [[ "$CONFIG_HELPERS_READY" -ne 1 ]]; then
-  exit_blocked_setup
+  ok "Config template found"
 fi
 
 if [[ ! -f "$CONFIG_TEMPLATE" && ! -f "$CONFIG_FILE" ]]; then
   exit_blocked_setup
 fi
 
+# ── Config ──
+
+printf '\nSetting up config...\n'
+
 if [[ -f "$CONFIG_FILE" ]]; then
-  ok "config.yaml already exists"
+  ok "config.yaml exists"
 else
   cp "$CONFIG_TEMPLATE" "$CONFIG_FILE"
-  ok "Created config.yaml from template"
+  ok "Created config.yaml"
 fi
+
+if [[ -f "$CONFIG_FILE" ]]; then
+  timezone_value="$(get_config_value timezone)"
+  if [[ -z "${timezone_value// }" ]] || [[ "$timezone_value" == "UTC" ]]; then
+    detected_tz="$(detect_timezone)"
+    if [[ -n "${detected_tz// }" ]] && [[ "$detected_tz" != "UTC" ]]; then
+      set_config_value timezone "$detected_tz"
+      ok "Timezone auto-detected: $detected_tz"
+    elif [[ -z "${timezone_value// }" ]]; then
+      set_config_value timezone "UTC"
+      ok "Timezone set to UTC (update in config.yaml if needed)"
+    fi
+  else
+    resolved_tz="$(resolve_timezone_alias "$timezone_value")"
+    if [[ "$resolved_tz" != "$timezone_value" ]]; then
+      set_config_value timezone "$resolved_tz"
+      ok "Timezone resolved: $timezone_value -> $resolved_tz"
+    else
+      ok "Timezone: $timezone_value"
+    fi
+  fi
+fi
+
+# ── Slack Identity ──
+
+printf '\nResolving Slack identity...\n'
 
 try_slack_resolve() {
   local current_uid
   current_uid="$(get_config_value slack_user_id)"
   if [[ -n "${current_uid// }" ]]; then
-    return 0  # already set
+    return 0
   fi
   if ! command -v claude >/dev/null 2>&1; then
     return 1
   fi
-  printf 'Attempting to auto-resolve Slack identity...\n'
+  printf '  Attempting auto-resolve via Slack...\n'
   local result
   result="$(claude -p "Use slack_read_user_profile with no arguments to get the current user's profile. Return ONLY a JSON object with exactly these fields: user_id (the Slack U... ID), display_name. No other text, no markdown." \
     --allowedTools "mcp__claude_ai_Slack__slack_read_user_profile" \
@@ -165,13 +225,11 @@ try_slack_resolve() {
   fi
   local resolved_id
   resolved_id="$(printf '%s' "$result" | python3 -c "
-import sys, json
+import sys, json, re
 try:
     data = json.load(sys.stdin)
     if isinstance(data, list): data = data[-1]
     uid = data.get('user_id','') or data.get('result','')
-    # try to extract U... from result string
-    import re
     if not uid.startswith('U'):
         m = re.search(r'U[A-Z0-9]{6,}', str(data))
         if m: uid = m.group()
@@ -191,7 +249,7 @@ except Exception:
 " 2>/dev/null || true)"
   if [[ -n "${resolved_id// }" ]] && [[ "$resolved_id" == U* ]]; then
     set_config_value slack_user_id "$resolved_id"
-    ok "Auto-resolved slack_user_id: $resolved_id${display_name:+ ($display_name)}"
+    ok "Slack identity resolved: $resolved_id${display_name:+ ($display_name)}"
     return 0
   fi
   return 1
@@ -204,7 +262,7 @@ try_slack_channel_resolve() {
     return 0
   fi
   if [[ -n "${current_channel_id// }" ]]; then
-    warn "config.yaml: slack_channel_id '$current_channel_id' is invalid for polling; treating it as unresolved."
+    warn "Slack channel '$current_channel_id' is invalid for polling; treating it as unresolved."
     set_config_value slack_channel_id ""
   fi
 
@@ -217,7 +275,7 @@ try_slack_channel_resolve() {
     return 1
   fi
 
-  printf 'Attempting to auto-resolve Slack self-DM channel...\n'
+  printf '  Attempting self-DM channel resolve via Slack...\n'
   local result
   result="$(claude -p "Use slack_send_message to send this exact message to Slack user ID ${current_uid}: Companion setup: resolving self-DM channel ID. Then return ONLY a JSON object with exactly this field: channel_id. The value must be the real Slack conversation ID used for the send (D..., C..., or G...). No markdown, no extra text." \
     --allowedTools "mcp__claude_ai_Slack__slack_send_message" \
@@ -271,152 +329,87 @@ if found and pattern.match(found):
 
   if is_valid_slack_channel_id "$resolved_channel_id"; then
     set_config_value slack_channel_id "$resolved_channel_id"
-    ok "Auto-resolved slack_channel_id: $resolved_channel_id"
+    ok "Slack self-DM channel resolved: $resolved_channel_id"
     return 0
   fi
 
   return 1
 }
 
-parse_slack_url() {
-  local url="$1"
-  # Extract D... channel ID from URLs like https://app.slack.com/client/TXXXX/DXXXX
-  local channel_id
-  channel_id="$(printf '%s' "$url" | grep -oE 'D[A-Z0-9]{6,}' | head -1 || true)"
-  printf '%s' "$channel_id"
-}
+try_slack_resolve || true
+normalize_slack_channel_id || true
+try_slack_channel_resolve || true
 
-if [[ -f "$CONFIG_FILE" ]]; then
-  normalize_slack_channel_id || true
-
-  timezone_value="$(get_config_value timezone)"
-  if [[ -z "${timezone_value// }" ]]; then
-    set_config_value timezone "UTC"
-    ok "Set default timezone to UTC"
-  fi
-
-  # Try to auto-resolve Slack identity before interactive prompts
-  try_slack_resolve || true
-  try_slack_channel_resolve || true
-
-  if [[ -t 0 ]]; then
-    current_timezone="$(get_config_value timezone)"
-    printf '\nTimezone [%s]: ' "$current_timezone"
-    read -r input_timezone || true
-    if [[ -n "${input_timezone// }" ]]; then
-      set_config_value timezone "$input_timezone"
-      ok "Updated timezone"
-    fi
-
-    current_slack_user_id="$(get_config_value slack_user_id)"
-    if [[ -z "${current_slack_user_id// }" ]]; then
-      printf 'Slack user ID (U...) or paste a Slack DM URL to extract IDs automatically [leave blank to fill later]: '
-      read -r input_slack_user_id || true
-      if [[ -n "${input_slack_user_id// }" ]]; then
-        if [[ "$input_slack_user_id" == http* ]]; then
-          # URL paste: extract channel ID
-          extracted_channel="$(parse_slack_url "$input_slack_user_id")"
-          if [[ -n "${extracted_channel// }" ]]; then
-            set_config_value slack_channel_id "$extracted_channel"
-            ok "Extracted slack_channel_id from URL: $extracted_channel"
-          fi
-          printf 'Slack user ID (U...) [still needed — your personal user ID, not the channel]: '
-          read -r input_slack_user_id || true
-        fi
-        if [[ -n "${input_slack_user_id// }" ]] && [[ "$input_slack_user_id" != http* ]]; then
-          set_config_value slack_user_id "$input_slack_user_id"
-          ok "Stored slack_user_id"
-          try_slack_channel_resolve || true
-        fi
-      fi
-    fi
-
-    current_channel_id="$(get_config_value slack_channel_id)"
-    if [[ -z "${current_channel_id// }" ]]; then
-      printf 'Slack channel ID for polling (D..., C..., or G...) [leave blank to auto-resolve self-DM]: '
-      read -r input_channel_id || true
-      if [[ -n "${input_channel_id// }" ]]; then
-        if is_valid_slack_channel_id "$input_channel_id"; then
-          set_config_value slack_channel_id "$input_channel_id"
-          ok "Stored slack_channel_id"
-        else
-          warn "Ignoring invalid slack_channel_id '$input_channel_id'. Slack polling requires a real D..., C..., or G... channel ID."
-        fi
-      fi
-    fi
-  fi
-
-  normalize_slack_channel_id || true
-  try_slack_channel_resolve || true
-
-  slack_user_id="$(get_config_value slack_user_id)"
-  slack_channel_id="$(get_config_value slack_channel_id)"
-  timezone_final="$(get_config_value timezone)"
-
-  if [[ -z "${slack_user_id// }" ]]; then
-    action_needed "config.yaml: slack_user_id is empty. Claude can usually resolve this via Slack tools."
-  else
-    ok "config.yaml: slack_user_id present"
-  fi
-
-  if is_valid_slack_channel_id "$slack_channel_id"; then
-    ok "config.yaml: slack_channel_id present and pollable"
-  else
-    action_needed "config.yaml: slack_channel_id is unresolved. Slack polling will not work until setup stores a real D..., C..., or G... channel ID. Sending may still work with slack_user_id."
-  fi
-
-  if [[ -z "${timezone_final// }" ]]; then
-    action_needed "config.yaml: timezone is empty. Set an IANA timezone like America/Edmonton."
-  else
-    ok "config.yaml: timezone set to $timezone_final"
-  fi
+slack_user_id="$(get_config_value slack_user_id)"
+if [[ -z "${slack_user_id// }" ]]; then
+  action_needed "Slack user ID not set. Claude can usually resolve this automatically when the companion starts."
+else
+  ok "Slack user ID: $slack_user_id"
 fi
+
+slack_channel_id="$(get_config_value slack_channel_id)"
+if is_valid_slack_channel_id "$slack_channel_id"; then
+  ok "Slack channel: $slack_channel_id"
+else
+  action_needed "Slack polling requires a real D..., C..., or G... channel ID. Sending may still work with the Slack user ID fallback."
+fi
+
+# ── Connected Apps ──
+
+printf '\nChecking connected apps...\n'
 
 if command -v claude >/dev/null 2>&1; then
   mcp_list_output="$(claude mcp list 2>/dev/null || true)"
   if [[ -z "${mcp_list_output// }" ]]; then
-    warn "Could not query MCP integrations automatically (claude mcp list unavailable or empty output)."
-    action_needed "Confirm these integrations are enabled in Claude: Slack, Gmail, Fireflies, Google Calendar, Google Drive. Open Claude Code settings > MCP Integrations to enable them."
+    warn "Could not check connected apps automatically."
+    action_needed "Make sure Slack is connected in Claude Code. Type /integrations in Claude Code to check."
   else
-    check_mcp() {
+    check_app() {
       local label="$1"
       local pattern="$2"
+      local required="${3:-false}"
       if printf '%s' "$mcp_list_output" | grep -Eiq "$pattern"; then
-        ok "MCP integration detected: $label"
+        ok "$label connected"
+      elif [[ "$required" == "true" ]]; then
+        action_needed "$label not connected. In Claude Code, type /integrations and connect $label."
       else
-        action_needed "Enable MCP integration: $label — Open Claude Code settings > MCP Integrations"
+        warn "$label not connected (optional). Connect it in Claude Code with /integrations if you want to use it."
       fi
     }
 
-    check_mcp "Slack" "(claude_ai_Slack|Slack)"
-    check_mcp "Gmail" "(claude_ai_Gmail|Gmail)"
-    check_mcp "Fireflies" "(claude_ai_Fireflies|Fireflies)"
-    check_mcp "Google Calendar" "(claude_ai_Google_Calendar|Google.Calendar|Calendar)"
-    check_mcp "Google Drive" "(claude_ai_Google_Drive|Google.Drive|Drive)"
+    check_app "Slack" "(claude_ai_Slack|Slack)" "true"
+    check_app "Gmail" "(claude_ai_Gmail|Gmail)"
+    check_app "Google Calendar" "(claude_ai_Google_Calendar|Google.Calendar|Calendar)"
+    check_app "Fireflies" "(claude_ai_Fireflies|Fireflies)"
+    check_app "Google Drive" "(claude_ai_Google_Drive|Google.Drive|Drive)"
   fi
 fi
 
-# MCP tool inventory snapshot
 if command -v python3 >/dev/null 2>&1 && [[ -f "$BASE_DIR/scripts/mcp_inventory.py" ]]; then
   python3 "$BASE_DIR/scripts/mcp_inventory.py" 2>/dev/null \
-    && ok "MCP tool inventory saved to .context/mcp_tools.json" \
-    || warn "Could not snapshot MCP tools (non-fatal)"
+    && ok "App inventory saved" \
+    || true
 fi
 
-printf '\nSummary: %d blocked, %d action needed, %d warnings\n' "$BLOCKERS" "$ACTIONS" "$WARNINGS"
+# ── Summary ──
+
+printf '\n'
 
 if [[ "$BLOCKERS" -gt 0 ]]; then
-  printf 'Setup cannot continue until blocked items are fixed.\n'
+  printf 'A few things need fixing before we can start:\n'
+  printf '  See the items marked with ✗ above.\n'
   exit 2
 fi
 
 if [[ "$ACTIONS" -gt 0 ]]; then
-  cat <<'TXT'
-Setup is partially complete.
-Next: ask Claude Code to finish unresolved items, for example:
-"Finish setup for this project. Resolve Slack IDs if possible and tell me exactly what is still missing."
-TXT
+  printf 'Almost there! Here'"'"'s what'"'"'s left:\n'
+  local_i=1
+  for item in "${ACTION_ITEMS[@]}"; do
+    printf '  %d. %s\n' "$local_i" "$item"
+    local_i=$((local_i + 1))
+  done
+  printf '\nClaude can usually resolve these automatically. Start the companion and it will try.\n'
   exit 1
 fi
 
-printf 'Setup checks passed. Start the agent with: python3 pulse.py\n'
+printf 'All set! Ready to start your companion.\n'

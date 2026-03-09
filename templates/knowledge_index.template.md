@@ -12,4 +12,6 @@ _No email summaries yet._
 _No notes yet._
 
 ## People
+<!-- Automatically populated from meetings and emails. Format: -->
+<!-- - **Name** (Org) — last: YYYY-MM-DD — brief context -->
 _No contacts tracked yet._

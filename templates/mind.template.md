@@ -34,6 +34,7 @@ _No inbox items tracked yet._
 _No events yet._
 
 ## Preferences
+- **Role:** _Not set yet — will be asked during onboarding._
 - Add user communication preferences here.
 
 ## Next Pulse Instructions
