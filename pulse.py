@@ -405,7 +405,7 @@ def refresh_mcp_inventory() -> None:
 # Auto-update helpers
 # ---------------------------------------------------------------------------
 
-def check_for_updates(config: dict) -> dict | None:
+def check_for_updates(config: dict) -> Optional[dict]:
     """Check upstream for new commits. Returns info dict or None if up-to-date."""
     branch = config.get("auto_update", {}).get("branch", "main")
     try:
