@@ -6,7 +6,7 @@ slack_poll_interval_seconds: 1
 
 # User identity (fill locally in config.yaml; do not commit secrets or IDs)
 slack_user_id: ""   # Required. Your Slack user ID, e.g. U01XXXXXXX
-slack_channel_id: ""  # Optional. Channel to post/listen in. Defaults to slack_user_id (self-DM). Set to a channel/group ID to use a different channel.
+slack_channel_id: ""  # Optional. Setup auto-resolves self-DM to a real D..., C..., or G... channel ID. U... user IDs may work for sending, but polling requires a real channel ID.
 
 # Timezone
 timezone: "UTC"

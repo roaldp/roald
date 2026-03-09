@@ -8,6 +8,7 @@ CONFIG_FILE="$BASE_DIR/config.yaml"
 BLOCKERS=0
 ACTIONS=0
 WARNINGS=0
+CONFIG_HELPERS_READY=1
 
 ok() {
   printf '[OK] %s\n' "$1"
@@ -26,6 +27,12 @@ blocked() {
 warn() {
   WARNINGS=$((WARNINGS + 1))
   printf '[WARN] %s\n' "$1"
+}
+
+exit_blocked_setup() {
+  printf '\nSummary: %d blocked, %d action needed, %d warnings\n' "$BLOCKERS" "$ACTIONS" "$WARNINGS"
+  printf 'Setup cannot continue until blocked items are fixed.\n'
+  exit 2
 }
 
 set_config_value() {
@@ -59,6 +66,28 @@ print(str(data.get(key, "")))
 PY
 }
 
+is_valid_slack_channel_id() {
+  local value="${1:-}"
+  [[ "$value" =~ ^[DCG][A-Z0-9]+$ ]]
+}
+
+normalize_slack_channel_id() {
+  local current_channel_id
+  current_channel_id="$(get_config_value slack_channel_id)"
+
+  if [[ -z "${current_channel_id// }" ]]; then
+    return 1
+  fi
+
+  if is_valid_slack_channel_id "$current_channel_id"; then
+    return 0
+  fi
+
+  warn "config.yaml: slack_channel_id '$current_channel_id' is invalid for polling; clearing it until a real D..., C..., or G... ID is resolved."
+  set_config_value slack_channel_id ""
+  return 1
+}
+
 printf 'Local Claude Companion setup\n'
 printf 'Project: %s\n\n' "$BASE_DIR"
 
@@ -77,9 +106,11 @@ PY
     ok "Python version is >= 3.9"
   else
     blocked "Python 3.9+ is required."
+    CONFIG_HELPERS_READY=0
   fi
 else
   blocked "python3 not found."
+  CONFIG_HELPERS_READY=0
 fi
 
 if command -v python3 >/dev/null 2>&1; then
@@ -89,7 +120,8 @@ PY
   then
     ok "PyYAML installed"
   else
-    action_needed "PyYAML missing. Run: python3 -m pip install pyyaml"
+    blocked "PyYAML missing. Run: python3 -m pip install pyyaml"
+    CONFIG_HELPERS_READY=0
   fi
 fi
 
@@ -97,6 +129,14 @@ if [[ ! -f "$CONFIG_TEMPLATE" ]]; then
   blocked "Missing config template: $CONFIG_TEMPLATE"
 else
   ok "Found config template"
+fi
+
+if [[ "$CONFIG_HELPERS_READY" -ne 1 ]]; then
+  exit_blocked_setup
+fi
+
+if [[ ! -f "$CONFIG_TEMPLATE" && ! -f "$CONFIG_FILE" ]]; then
+  exit_blocked_setup
 fi
 
 if [[ -f "$CONFIG_FILE" ]]; then
@@ -157,6 +197,87 @@ except Exception:
   return 1
 }
 
+try_slack_channel_resolve() {
+  local current_channel_id
+  current_channel_id="$(get_config_value slack_channel_id)"
+  if is_valid_slack_channel_id "$current_channel_id"; then
+    return 0
+  fi
+  if [[ -n "${current_channel_id// }" ]]; then
+    warn "config.yaml: slack_channel_id '$current_channel_id' is invalid for polling; treating it as unresolved."
+    set_config_value slack_channel_id ""
+  fi
+
+  local current_uid
+  current_uid="$(get_config_value slack_user_id)"
+  if [[ -z "${current_uid// }" ]]; then
+    return 1
+  fi
+  if ! command -v claude >/dev/null 2>&1; then
+    return 1
+  fi
+
+  printf 'Attempting to auto-resolve Slack self-DM channel...\n'
+  local result
+  result="$(claude -p "Use slack_send_message to send this exact message to Slack user ID ${current_uid}: Companion setup: resolving self-DM channel ID. Then return ONLY a JSON object with exactly this field: channel_id. The value must be the real Slack conversation ID used for the send (D..., C..., or G...). No markdown, no extra text." \
+    --allowedTools "mcp__claude_ai_Slack__slack_send_message" \
+    --output-format json 2>/dev/null || true)"
+  if [[ -z "${result// }" ]]; then
+    return 1
+  fi
+
+  local resolved_channel_id
+  resolved_channel_id="$(printf '%s' "$result" | python3 -c "
+import json
+import re
+import sys
+
+pattern = re.compile(r'^[DCG][A-Z0-9]+$')
+
+def walk(value):
+    if isinstance(value, dict):
+        channel_id = value.get('channel_id')
+        if isinstance(channel_id, str):
+            channel_id = channel_id.strip()
+            if pattern.match(channel_id):
+                return channel_id
+        for nested in value.values():
+            found = walk(nested)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for nested in reversed(value):
+            found = walk(nested)
+            if found:
+                return found
+    elif isinstance(value, str):
+        match = re.search(r'\\b([DCG][A-Z0-9]{6,})\\b', value)
+        if match:
+            return match.group(1)
+    return ''
+
+raw = sys.stdin.read()
+found = ''
+try:
+    found = walk(json.loads(raw))
+except Exception:
+    match = re.search(r'\\b([DCG][A-Z0-9]{6,})\\b', raw)
+    if match:
+        found = match.group(1)
+
+if found and pattern.match(found):
+    print(found)
+" 2>/dev/null || true)"
+
+  if is_valid_slack_channel_id "$resolved_channel_id"; then
+    set_config_value slack_channel_id "$resolved_channel_id"
+    ok "Auto-resolved slack_channel_id: $resolved_channel_id"
+    return 0
+  fi
+
+  return 1
+}
+
 parse_slack_url() {
   local url="$1"
   # Extract D... channel ID from URLs like https://app.slack.com/client/TXXXX/DXXXX
@@ -166,6 +287,8 @@ parse_slack_url() {
 }
 
 if [[ -f "$CONFIG_FILE" ]]; then
+  normalize_slack_channel_id || true
+
   timezone_value="$(get_config_value timezone)"
   if [[ -z "${timezone_value// }" ]]; then
     set_config_value timezone "UTC"
@@ -174,6 +297,7 @@ if [[ -f "$CONFIG_FILE" ]]; then
 
   # Try to auto-resolve Slack identity before interactive prompts
   try_slack_resolve || true
+  try_slack_channel_resolve || true
 
   if [[ -t 0 ]]; then
     current_timezone="$(get_config_value timezone)"
@@ -202,20 +326,28 @@ if [[ -f "$CONFIG_FILE" ]]; then
         if [[ -n "${input_slack_user_id// }" ]] && [[ "$input_slack_user_id" != http* ]]; then
           set_config_value slack_user_id "$input_slack_user_id"
           ok "Stored slack_user_id"
+          try_slack_channel_resolve || true
         fi
       fi
     fi
 
     current_channel_id="$(get_config_value slack_channel_id)"
     if [[ -z "${current_channel_id// }" ]]; then
-      printf 'Slack channel ID for DMs (D...) [leave blank — defaults to slack_user_id for self-DM]: '
+      printf 'Slack channel ID for polling (D..., C..., or G...) [leave blank to auto-resolve self-DM]: '
       read -r input_channel_id || true
       if [[ -n "${input_channel_id// }" ]]; then
-        set_config_value slack_channel_id "$input_channel_id"
-        ok "Stored slack_channel_id"
+        if is_valid_slack_channel_id "$input_channel_id"; then
+          set_config_value slack_channel_id "$input_channel_id"
+          ok "Stored slack_channel_id"
+        else
+          warn "Ignoring invalid slack_channel_id '$input_channel_id'. Slack polling requires a real D..., C..., or G... channel ID."
+        fi
       fi
     fi
   fi
+
+  normalize_slack_channel_id || true
+  try_slack_channel_resolve || true
 
   slack_user_id="$(get_config_value slack_user_id)"
   slack_channel_id="$(get_config_value slack_channel_id)"
@@ -227,10 +359,10 @@ if [[ -f "$CONFIG_FILE" ]]; then
     ok "config.yaml: slack_user_id present"
   fi
 
-  if [[ -z "${slack_channel_id// }" ]]; then
-    ok "config.yaml: slack_channel_id not set — will default to slack_user_id (self-DM)"
+  if is_valid_slack_channel_id "$slack_channel_id"; then
+    ok "config.yaml: slack_channel_id present and pollable"
   else
-    ok "config.yaml: slack_channel_id present"
+    action_needed "config.yaml: slack_channel_id is unresolved. Slack polling will not work until setup stores a real D..., C..., or G... channel ID. Sending may still work with slack_user_id."
   fi
 
   if [[ -z "${timezone_final// }" ]]; then
