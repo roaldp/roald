@@ -13,7 +13,14 @@ from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "pyyaml"],
+        stdout=subprocess.DEVNULL,
+    )
+    import yaml
 
 BASE_DIR = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "config.yaml"
@@ -684,6 +691,20 @@ async def timer_loop(config: dict) -> None:
         await run_full_pulse(config)
 
 
+HEARTBEAT_PATH = BASE_DIR / "logs" / ".heartbeat"
+
+
+async def heartbeat_loop() -> None:
+    """Write a heartbeat timestamp every 60s so external tools can detect if pulse is alive."""
+    while True:
+        try:
+            HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            HEARTBEAT_PATH.write_text(datetime.now().isoformat())
+        except Exception:
+            pass
+        await asyncio.sleep(60)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Personal companion pulse scheduler")
     mode = parser.add_mutually_exclusive_group()
@@ -701,6 +722,17 @@ def validate_config(config: dict) -> None:
     if not user_id:
         print("ERROR: slack_user_id is not set in config.yaml. Set it to your Slack user ID (e.g. U01XXXXXXX).", flush=True)
         sys.exit(1)
+    # Warn if timezone is UTC but system timezone differs
+    tz = str(config.get("timezone", "")).strip()
+    if tz == "UTC" or not tz:
+        try:
+            link = os.readlink("/etc/localtime")
+            detected = link.split("zoneinfo/")[-1] if "zoneinfo/" in link else ""
+            if detected and detected != "UTC":
+                log(f"WARNING: timezone is UTC but your system timezone is {detected}. "
+                    f"Update config.yaml timezone to '{detected}' for accurate scheduling.")
+        except Exception:
+            pass
 
 
 def slack_channel(config: dict) -> str:
@@ -745,6 +777,7 @@ async def main(args: argparse.Namespace) -> None:
         timer_loop(config),
         slack_loop(config),
         update_loop(config),
+        heartbeat_loop(),
     )
 
 
