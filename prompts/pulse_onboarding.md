@@ -29,7 +29,7 @@ If an integration is unavailable, that's fine — record it and move on. Do not 
 
 ### 3. Quick Value Scan
 For each **connected** source, fetch one concrete piece of information to show in the welcome message:
-- **Gmail:** Count unread emails (search `is:unread`). Report the count.
+- **Gmail:** Count unread emails (search `is:unread` from today). Report today's count.
 - **Calendar:** Find the next upcoming meeting today or tomorrow. Report its title and time.
 - **Fireflies:** Find the most recent transcript. Report its title and date.
 - **Slack:** No extra fetch needed (already in DM).
@@ -43,7 +43,7 @@ Send a single DM to the Slack channel. Include the quick value scan results and 
 > Hey! I'm up and running as your personal companion. Here's what I can see:
 >
 > [Include quick value scan results, e.g.:]
-> - You have 12 unread emails — I'll help you triage later today
+> - You have 12 new unread emails — I'll help you triage later today
 > - Next meeting: "Q1 Review" at 2pm with Sarah
 > - Last recorded meeting: "Product sync" (Mar 6)
 >
