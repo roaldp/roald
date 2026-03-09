@@ -6,17 +6,18 @@ Delegate your knowledge monitoring to a proactive assistant that runs from your 
 
 - **macOS** (the companion runs as a background service using launchd)
 - **Claude Code** installed and open
-- **Slack** connected in Claude Code (required)
-- Gmail, Calendar, Fireflies, Google Drive are optional — the companion works with whatever you have connected
+- **Slack** connected in Claude Code
 
-## Get Started (3 minutes)
+Gmail, Calendar, Fireflies, Google Drive are optional — the companion works with whatever you have connected.
+
+## Get Started
 
 1. Open Claude Code (anywhere — no need to download anything first).
 2. Paste this into the chat:<br>
-   `Clone https://github.com/roaldp/roald, then set it up end-to-end: run ./scripts/setup.sh, resolve any issues it reports (you may need to connect Slack under /integrations in Claude Code), then run ./scripts/start.sh to start the companion as a background service. Tell me once it's running and what I should expect from the first Slack message.`
-3. Watch for a Slack DM — your companion is running.
+   `Clone https://github.com/roaldp/roald (skip if already exists). Fast setup — don't read source files, just: (1) run ./scripts/setup.sh, (2) use slack_read_user_profile to get my Slack user ID and set the slack_user_id field in config.yaml, (3) run ./scripts/start.sh — it will test Slack and send a welcome DM. Tell me once it's live.`
+3. You'll get a Slack DM confirming setup, then a full update within a few minutes.
 
-That's it. Claude handles the rest.
+That's it. One paste, no interruptions.
 
 ## What it does
 
@@ -69,16 +70,11 @@ The setup script (`scripts/setup.sh`):
 - Verifies local prerequisites (`claude`, `python3`)
 - Creates `config.yaml` from `config.template.yaml` when missing
 - Auto-detects your timezone from macOS system settings
-- Auto-resolves your Slack user ID via Slack MCP
-- Checks which apps are connected to Claude Code
+- Warns about any apps not detected in `claude mcp list`
+
+Claude Code resolves your Slack user ID directly. The start script sends a welcome DM to verify the Slack connection before starting the service — if the DM fails, it stops and tells you what to fix.
 
 The start script (`scripts/start.sh`) registers the companion as a **persistent background service** using macOS launchd. It keeps running when your screen is locked or the machine sleeps, and restarts automatically after a reboot. To stop it: `bash scripts/start.sh stop`.
-
-### Slack ID fallback (if Claude cannot resolve it automatically)
-
-1. Send a DM to yourself in Slack.
-2. Copy that message URL.
-3. Give the URL to Claude Code and ask it to extract your user ID and DM channel ID.
 
 ---
 

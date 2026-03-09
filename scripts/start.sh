@@ -52,6 +52,42 @@ if [[ -f "$PID_PATH" ]]; then
   fi
 fi
 
+# ── Test Slack connection with a welcome DM ──
+
+CONFIG_FILE="$BASE_DIR/config.yaml"
+
+_cfg() {
+  grep -E "^${1}:" "$CONFIG_FILE" 2>/dev/null | head -1 \
+    | sed 's/^[^:]*: *//' | sed 's/"//g' | sed "s/'//g" | sed 's/ *#.*//' | tr -d ' '
+}
+
+slack_uid="$(_cfg slack_user_id)"
+if [[ -z "$slack_uid" ]]; then
+  printf '  ✗ slack_user_id is not set in config.yaml. Run setup.sh first.\n'
+  exit 1
+fi
+
+slack_cid="$(_cfg slack_channel_id)"
+[[ -z "$slack_cid" ]] && slack_cid="$slack_uid"
+
+printf 'Sending welcome DM to Slack...\n'
+
+# Clear CLAUDECODE env so claude -p can spawn from within a Claude Code session
+unset CLAUDECODE 2>/dev/null || true
+
+test_msg="Companion setup complete! I'll start monitoring your email, calendar, and Slack shortly. You'll hear from me in a few minutes with your first update. Reply anytime to ask a question or delegate a task."
+
+if claude -p "Send this exact message to Slack channel ${slack_cid}: ${test_msg}" \
+    --allowedTools "mcp__claude_ai_Slack__slack_send_message" \
+    >/dev/null 2>&1; then
+  printf '  ✓ Welcome DM sent — check Slack!\n\n'
+else
+  printf '  ✗ Could not send a DM via Slack.\n'
+  printf '  Make sure Slack is connected in Claude Code.\n'
+  printf '  Fix this and run start.sh again.\n'
+  exit 1
+fi
+
 # ── Option 1: launchd (macOS) — persistent across reboots, sleep, screen lock ──
 if [[ "$(uname)" == "Darwin" ]]; then
   mkdir -p "$(dirname "$PLIST_PATH")"

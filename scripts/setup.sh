@@ -187,64 +187,13 @@ fi
 
 # ── Slack Identity ──
 
-printf '\nResolving Slack identity...\n'
-
-try_slack_resolve() {
-  local current_uid
-  current_uid="$(get_config_value slack_user_id)"
-  if [[ -n "${current_uid// }" ]]; then
-    return 0  # already set
-  fi
-  if ! command -v claude >/dev/null 2>&1; then
-    return 1
-  fi
-  printf '  Attempting auto-resolve via Slack...\n'
-  local result
-  result="$(claude -p "Use slack_read_user_profile with no arguments to get the current user's profile. Return ONLY a JSON object with exactly these fields: user_id (the Slack U... ID), display_name. No other text, no markdown." \
-    --allowedTools "mcp__claude_ai_Slack__slack_read_user_profile" \
-    --output-format json 2>/dev/null || true)"
-  if [[ -z "${result// }" ]]; then
-    return 1
-  fi
-  local resolved_id
-  resolved_id="$(printf '%s' "$result" | python3 -c "
-import sys, json, re
-try:
-    data = json.load(sys.stdin)
-    if isinstance(data, list): data = data[-1]
-    uid = data.get('user_id','') or data.get('result','')
-    if not uid.startswith('U'):
-        m = re.search(r'U[A-Z0-9]{6,}', str(data))
-        if m: uid = m.group()
-    print(uid.strip())
-except Exception:
-    pass
-" 2>/dev/null || true)"
-  local display_name
-  display_name="$(printf '%s' "$result" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    if isinstance(data, list): data = data[-1]
-    print(data.get('display_name','') or data.get('real_name',''))
-except Exception:
-    pass
-" 2>/dev/null || true)"
-  if [[ -n "${resolved_id// }" ]] && [[ "$resolved_id" == U* ]]; then
-    set_config_value slack_user_id "$resolved_id"
-    ok "Slack identity resolved: $resolved_id${display_name:+ ($display_name)}"
-    return 0
-  fi
-  return 1
-}
-
-try_slack_resolve || true
+printf '\nSlack identity...\n'
 
 slack_user_id="$(get_config_value slack_user_id)"
-if [[ -z "${slack_user_id// }" ]]; then
-  action_needed "Slack user ID not set. Claude can usually resolve this automatically when the companion starts."
-else
+if [[ -n "${slack_user_id// }" ]]; then
   ok "Slack user ID: $slack_user_id"
+else
+  ok "Slack user ID: not set yet (Claude will resolve this using your Slack connection)"
 fi
 
 slack_channel_id="$(get_config_value slack_channel_id)"
@@ -260,29 +209,21 @@ printf '\nChecking connected apps...\n'
 
 if command -v claude >/dev/null 2>&1; then
   mcp_list_output="$(claude mcp list 2>/dev/null || true)"
-  if [[ -z "${mcp_list_output// }" ]]; then
-    warn "Could not check connected apps automatically."
-    action_needed "Make sure Slack is connected in Claude Code. Type /integrations in Claude Code to check."
-  else
-    check_app() {
-      local label="$1"
-      local pattern="$2"
-      local required="${3:-false}"
-      if printf '%s' "$mcp_list_output" | grep -Eiq "$pattern"; then
-        ok "$label connected"
-      elif [[ "$required" == "true" ]]; then
-        action_needed "$label not connected. In Claude Code, type /integrations and connect $label."
-      else
-        warn "$label not connected (optional). Connect it in Claude Code with /integrations if you want to use it."
-      fi
-    }
+  check_app() {
+    local label="$1"
+    local pattern="$2"
+    if [[ -n "${mcp_list_output// }" ]] && printf '%s' "$mcp_list_output" | grep -Eiq "$pattern"; then
+      ok "$label connected"
+    else
+      warn "$label not detected in 'claude mcp list' (may still be available — Claude will test the connection)."
+    fi
+  }
 
-    check_app "Slack" "(claude_ai_Slack|Slack)" "true"
-    check_app "Gmail" "(claude_ai_Gmail|Gmail)"
-    check_app "Google Calendar" "(claude_ai_Google_Calendar|Google.Calendar|Calendar)"
-    check_app "Fireflies" "(claude_ai_Fireflies|Fireflies)"
-    check_app "Google Drive" "(claude_ai_Google_Drive|Google.Drive|Drive)"
-  fi
+  check_app "Slack" "(claude_ai_Slack|Slack)"
+  check_app "Gmail" "(claude_ai_Gmail|Gmail)"
+  check_app "Google Calendar" "(claude_ai_Google_Calendar|Google.Calendar|Calendar)"
+  check_app "Fireflies" "(claude_ai_Fireflies|Fireflies)"
+  check_app "Google Drive" "(claude_ai_Google_Drive|Google.Drive|Drive)"
 fi
 
 # MCP tool inventory snapshot
