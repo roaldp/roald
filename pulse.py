@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """pulse.py — Event loop for a personal AI companion."""
+from __future__ import annotations
 
 import argparse
 import asyncio
@@ -405,7 +406,7 @@ def refresh_mcp_inventory() -> None:
 # Auto-update helpers
 # ---------------------------------------------------------------------------
 
-def check_for_updates(config: dict) -> Optional[dict]:
+def check_for_updates(config: dict) -> dict | None:
     """Check upstream for new commits. Returns info dict or None if up-to-date."""
     branch = config.get("auto_update", {}).get("branch", "main")
     try:
