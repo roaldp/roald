@@ -11,23 +11,29 @@ ACTION_ITEMS=()
 WARNINGS=0
 
 ok() {
-  printf '  \xe2\x9c\x93 %s\n' "$1"
+  printf '  ✓ %s\n' "$1"
 }
 
 action_needed() {
   ACTIONS=$((ACTIONS + 1))
   ACTION_ITEMS+=("$1")
-  printf '  \xe2\x86\x92 %s\n' "$1"
+  printf '  → %s\n' "$1"
 }
 
 blocked() {
   BLOCKERS=$((BLOCKERS + 1))
-  printf '  \xe2\x9c\x97 %s\n' "$1"
+  printf '  ✗ %s\n' "$1"
 }
 
 warn() {
   WARNINGS=$((WARNINGS + 1))
   printf '  ! %s\n' "$1"
+}
+
+exit_blocked_setup() {
+  printf '\nA few things need fixing before we can start:\n'
+  printf '  See the items marked with ✗ above.\n'
+  exit 2
 }
 
 # Pure-bash config helpers — no PyYAML needed for setup
@@ -36,21 +42,15 @@ get_config_value() {
   if [[ ! -f "$CONFIG_FILE" ]]; then
     return
   fi
-  # Match top-level key: value (handles quoted and unquoted values)
   local raw
   raw="$(grep -E "^${key}:" "$CONFIG_FILE" | head -1 | sed 's/^[^:]*: *//')" || true
-  # Strip inline YAML comments (# preceded by whitespace, outside quotes)
-  # Handle quoted values: extract content between first pair of quotes
   if [[ "$raw" == \"*\"* ]]; then
-    # Double-quoted: extract between first pair of "
     raw="${raw#\"}"
     raw="${raw%%\"*}"
   elif [[ "$raw" == \'*\'* ]]; then
-    # Single-quoted: extract between first pair of '
     raw="${raw#\'}"
     raw="${raw%%\'*}"
   else
-    # Unquoted: strip trailing comment
     raw="$(printf '%s' "$raw" | sed 's/  *#.*//')"
   fi
   printf '%s' "$raw"
@@ -60,28 +60,22 @@ set_config_value() {
   local key="$1"
   local value="$2"
   if grep -qE "^${key}:" "$CONFIG_FILE" 2>/dev/null; then
-    # Replace existing key (macOS sed requires '' after -i)
     sed -i '' "s|^${key}:.*|${key}: \"${value}\"|" "$CONFIG_FILE"
   else
     echo "${key}: \"${value}\"" >> "$CONFIG_FILE"
   fi
 }
 
-# Auto-detect system timezone (macOS)
 detect_timezone() {
   local tz=""
-  # macOS: /etc/localtime is a symlink to zoneinfo
   if [[ -L /etc/localtime ]]; then
     tz="$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')" || true
   fi
-  # Fallback: Python
   if [[ -z "$tz" ]] && command -v python3 >/dev/null 2>&1; then
     tz="$(python3 -c "
 try:
-    from datetime import datetime, timezone
     import time
-    lt = time.localtime()
-    if hasattr(lt, 'tm_zone') and '/' in (time.tzname[0] or ''):
+    if hasattr(time.localtime(), 'tm_zone') and '/' in (time.tzname[0] or ''):
         print(time.tzname[0])
     else:
         from pathlib import Path
@@ -97,7 +91,6 @@ except Exception:
   printf '%s' "$tz"
 }
 
-# Fuzzy timezone mapping for common abbreviations
 resolve_timezone_alias() {
   local input="$1"
   case "$(printf '%s' "$input" | tr '[:upper:]' '[:lower:]')" in
@@ -116,6 +109,28 @@ resolve_timezone_alias() {
     berlin) printf 'Europe/Berlin' ;;
     *) printf '%s' "$input" ;;
   esac
+}
+
+is_valid_slack_channel_id() {
+  local value="${1:-}"
+  [[ "$value" =~ ^[DCG][A-Z0-9]+$ ]]
+}
+
+normalize_slack_channel_id() {
+  local current_channel_id
+  current_channel_id="$(get_config_value slack_channel_id)"
+
+  if [[ -z "${current_channel_id// }" ]]; then
+    return 1
+  fi
+
+  if is_valid_slack_channel_id "$current_channel_id"; then
+    return 0
+  fi
+
+  warn "Slack channel '$current_channel_id' is invalid for polling; clearing it until a real D..., C..., or G... ID is resolved."
+  set_config_value slack_channel_id ""
+  return 1
 }
 
 printf '\nLocal Claude Companion — Setup\n\n'
@@ -150,6 +165,10 @@ else
   ok "Config template found"
 fi
 
+if [[ ! -f "$CONFIG_TEMPLATE" && ! -f "$CONFIG_FILE" ]]; then
+  exit_blocked_setup
+fi
+
 # ── Config ──
 
 printf '\nSetting up config...\n'
@@ -161,7 +180,6 @@ else
   ok "Created config.yaml"
 fi
 
-# Auto-detect and set timezone
 if [[ -f "$CONFIG_FILE" ]]; then
   timezone_value="$(get_config_value timezone)"
   if [[ -z "${timezone_value// }" ]] || [[ "$timezone_value" == "UTC" ]]; then
@@ -174,7 +192,6 @@ if [[ -f "$CONFIG_FILE" ]]; then
       ok "Timezone set to UTC (update in config.yaml if needed)"
     fi
   else
-    # Resolve common abbreviations
     resolved_tz="$(resolve_timezone_alias "$timezone_value")"
     if [[ "$resolved_tz" != "$timezone_value" ]]; then
       set_config_value timezone "$resolved_tz"
@@ -193,7 +210,7 @@ try_slack_resolve() {
   local current_uid
   current_uid="$(get_config_value slack_user_id)"
   if [[ -n "${current_uid// }" ]]; then
-    return 0  # already set
+    return 0
   fi
   if ! command -v claude >/dev/null 2>&1; then
     return 1
@@ -238,7 +255,90 @@ except Exception:
   return 1
 }
 
+try_slack_channel_resolve() {
+  local current_channel_id
+  current_channel_id="$(get_config_value slack_channel_id)"
+  if is_valid_slack_channel_id "$current_channel_id"; then
+    return 0
+  fi
+  if [[ -n "${current_channel_id// }" ]]; then
+    warn "Slack channel '$current_channel_id' is invalid for polling; treating it as unresolved."
+    set_config_value slack_channel_id ""
+  fi
+
+  local current_uid
+  current_uid="$(get_config_value slack_user_id)"
+  if [[ -z "${current_uid// }" ]]; then
+    return 1
+  fi
+  if ! command -v claude >/dev/null 2>&1; then
+    return 1
+  fi
+
+  printf '  Attempting self-DM channel resolve via Slack...\n'
+  local result
+  result="$(claude -p "Use slack_send_message to send this exact message to Slack user ID ${current_uid}: Companion setup: resolving self-DM channel ID. Then return ONLY a JSON object with exactly this field: channel_id. The value must be the real Slack conversation ID used for the send (D..., C..., or G...). No markdown, no extra text." \
+    --allowedTools "mcp__claude_ai_Slack__slack_send_message" \
+    --output-format json 2>/dev/null || true)"
+  if [[ -z "${result// }" ]]; then
+    return 1
+  fi
+
+  local resolved_channel_id
+  resolved_channel_id="$(printf '%s' "$result" | python3 -c "
+import json
+import re
+import sys
+
+pattern = re.compile(r'^[DCG][A-Z0-9]+$')
+
+def walk(value):
+    if isinstance(value, dict):
+        channel_id = value.get('channel_id')
+        if isinstance(channel_id, str):
+            channel_id = channel_id.strip()
+            if pattern.match(channel_id):
+                return channel_id
+        for nested in value.values():
+            found = walk(nested)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for nested in reversed(value):
+            found = walk(nested)
+            if found:
+                return found
+    elif isinstance(value, str):
+        match = re.search(r'\\b([DCG][A-Z0-9]{6,})\\b', value)
+        if match:
+            return match.group(1)
+    return ''
+
+raw = sys.stdin.read()
+found = ''
+try:
+    found = walk(json.loads(raw))
+except Exception:
+    match = re.search(r'\\b([DCG][A-Z0-9]{6,})\\b', raw)
+    if match:
+        found = match.group(1)
+
+if found and pattern.match(found):
+    print(found)
+" 2>/dev/null || true)"
+
+  if is_valid_slack_channel_id "$resolved_channel_id"; then
+    set_config_value slack_channel_id "$resolved_channel_id"
+    ok "Slack self-DM channel resolved: $resolved_channel_id"
+    return 0
+  fi
+
+  return 1
+}
+
 try_slack_resolve || true
+normalize_slack_channel_id || true
+try_slack_channel_resolve || true
 
 slack_user_id="$(get_config_value slack_user_id)"
 if [[ -z "${slack_user_id// }" ]]; then
@@ -248,10 +348,10 @@ else
 fi
 
 slack_channel_id="$(get_config_value slack_channel_id)"
-if [[ -z "${slack_channel_id// }" ]]; then
-  ok "Slack channel: will use self-DM (default)"
-else
+if is_valid_slack_channel_id "$slack_channel_id"; then
   ok "Slack channel: $slack_channel_id"
+else
+  action_needed "Slack polling requires a real D..., C..., or G... channel ID. Sending may still work with the Slack user ID fallback."
 fi
 
 # ── Connected Apps ──
@@ -285,7 +385,6 @@ if command -v claude >/dev/null 2>&1; then
   fi
 fi
 
-# MCP tool inventory snapshot
 if command -v python3 >/dev/null 2>&1 && [[ -f "$BASE_DIR/scripts/mcp_inventory.py" ]]; then
   python3 "$BASE_DIR/scripts/mcp_inventory.py" 2>/dev/null \
     && ok "App inventory saved" \
@@ -298,7 +397,7 @@ printf '\n'
 
 if [[ "$BLOCKERS" -gt 0 ]]; then
   printf 'A few things need fixing before we can start:\n'
-  printf '  See the items marked with \xe2\x9c\x97 above.\n'
+  printf '  See the items marked with ✗ above.\n'
   exit 2
 fi
 

@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -53,6 +54,7 @@ SLACK_OUTBOUND_TOOLS = {
     "mcp__claude_ai_Slack__slack_send_message",
     "mcp__claude_ai_Slack__slack_schedule_message",
 }
+SLACK_POLLABLE_CHANNEL_RE = re.compile(r"^[DCG][A-Z0-9]+$")
 
 
 def is_claude_echo_message(text: str) -> bool:
@@ -315,6 +317,15 @@ async def slack_loop(config: dict) -> None:
     user_id = str(config.get("slack_user_id", "")).strip()
     channel_id = slack_channel(config)
 
+    if not is_valid_pollable_slack_channel(channel_id):
+        configured_value = channel_id or "<empty>"
+        log(
+            "Slack polling disabled: no valid pollable Slack channel is configured "
+            f"(resolved_value={configured_value}). Sending may still work with slack_user_id, "
+            "but polling requires a D..., C..., or G... channel ID."
+        )
+        return
+
     last_ts: Optional[str] = None
     log(f"Slack listener started (channel={channel_id}, interval={interval}s)")
 
@@ -405,7 +416,7 @@ def refresh_mcp_inventory() -> None:
 # Auto-update helpers
 # ---------------------------------------------------------------------------
 
-def check_for_updates(config: dict) -> dict | None:
+def check_for_updates(config: dict) -> Optional[dict]:
     """Check upstream for new commits. Returns info dict or None if up-to-date."""
     branch = config.get("auto_update", {}).get("branch", "main")
     try:
@@ -738,6 +749,10 @@ def validate_config(config: dict) -> None:
 def slack_channel(config: dict) -> str:
     """Returns the channel to post to and listen on. Defaults to slack_user_id."""
     return str(config.get("slack_channel_id", "")).strip() or str(config.get("slack_user_id", "")).strip()
+
+
+def is_valid_pollable_slack_channel(channel_id: str) -> bool:
+    return bool(SLACK_POLLABLE_CHANNEL_RE.fullmatch(channel_id.strip()))
 
 
 async def main(args: argparse.Namespace) -> None:
