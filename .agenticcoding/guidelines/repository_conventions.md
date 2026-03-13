@@ -6,15 +6,20 @@
 .conductor/              # Conductor workspace config
   conductor.json         # Setup script reference
   conductor-setup.sh     # Environment symlinker
-  prompts/               # Custom prompts (slash commands + subagents)
 
 .agenticcoding/          # Agentic coding configuration
   guidelines/            # Coding and repository conventions
 
-.docs/                   # Documentation
+.docs/                   # Documentation and design specs
   plans/                 # Implementation plans (yyyy.mm.dd-name-of-plan)
 
+prompts/                 # Pulse prompt variants (onboarding, full, reactive)
+scripts/                 # Shell and Python scripts for running/setup
+templates/               # Templates for mind, knowledge index, etc.
+
 CLAUDE.md                # Agent interaction guidelines
+config.template.yaml     # Template for local config.yaml
+pulse.py                 # Main Pulse application entry point
 ```
 
 ## Plan Files
