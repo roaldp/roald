@@ -39,7 +39,19 @@ Each plan follows a standard structure:
 
 ## Conventions
 
-- Colocate test files with source files as `[filename].test.ts`
-- Integration tests go in `tests/integration/`
-- E2E tests go in `tests/e2e/api/` and `tests/e2e/ui/`
 - Keep git commit messages factual, no adjectives, no "Generated with" tags
+
+## Testing
+
+### TypeScript
+- Framework: Vitest with `vi.mock()` for mocking
+- Colocate unit tests with source files as `[filename].test.ts`
+- Integration tests go in `tests/integration/`
+- E2E tests: Playwright in `tests/e2e/api/` and `tests/e2e/ui/`
+
+### Python
+- Framework: pytest with `unittest.mock` for mocking
+- Colocate unit tests with source files as `test_[filename].py`
+- Integration tests go in `tests/integration/`
+- Run tests: `pytest` from the project root
+- Configuration in `pyproject.toml` under `[tool.pytest.ini_options]`
