@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """pulse.py — Event loop for a personal AI companion."""
 
+from __future__ import annotations
+
 import argparse
 import asyncio
 import json
@@ -9,6 +11,7 @@ import re
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -40,6 +43,8 @@ PROMPT_REACTIVE = BASE_DIR / "prompts" / "pulse_reactive.md"
 TEMPLATES_DIR = BASE_DIR / "templates"
 MIND_TEMPLATE_PATH = TEMPLATES_DIR / "mind.template.md"
 KNOWLEDGE_INDEX_TEMPLATE_PATH = TEMPLATES_DIR / "knowledge_index.template.md"
+TOKEN_USAGE_LOG_PATH = BASE_DIR / "logs" / "token_usage.jsonl"
+RUN_ID: str = datetime.now().strftime("%Y%m%dT%H%M%S")
 
 ALLOWED_TOOLS = (
     "Read,Edit,MultiEdit,Write,Glob,Grep,"
@@ -233,6 +238,7 @@ def run_claude(
         raise RuntimeError(f"claude exited {result.returncode}: {error_tail}")
 
     result_text = ""
+    usage = TokenUsage(0, 0, 0, 0, 0.0)
     tool_calls: dict[str, dict] = {}
     tool_starts = 0
     tool_ends = 0
@@ -284,9 +290,24 @@ def run_claude(
 
         elif event_type == "result":
             result_text = str(event.get("result", ""))
+            usage = _extract_usage(event)
 
     elapsed = time.monotonic() - started
-    log(f"EXEC END: {operation} ({elapsed:.1f}s, tools started={tool_starts}, tools ended={tool_ends})")
+    log(
+        f"EXEC END: {operation} ({elapsed:.1f}s, tools={tool_starts}, "
+        f"${usage.cost_usd:.4f} [in:{usage.input_tokens} out:{usage.output_tokens} "
+        f"cache:{usage.cache_read_input_tokens}])"
+    )
+    _log_token_usage(operation, usage, elapsed, model=model or "unknown")
+
+    global _zero_cost_streak
+    if usage.cost_usd == 0:
+        _zero_cost_streak += 1
+        if _zero_cost_streak >= 5:
+            log(f"WARNING: {_zero_cost_streak} consecutive zero-cost invocations — token tracking may be broken")
+    else:
+        _zero_cost_streak = 0
+
     return result_text
 
 
@@ -617,6 +638,82 @@ async def handle_update_command(config: dict, user_text: str) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# Token monitoring
+# ---------------------------------------------------------------------------
+
+@dataclass
+class TokenUsage:
+    """Token counts and cost from a single Claude CLI invocation."""
+
+    input_tokens: int
+    output_tokens: int
+    cache_creation_input_tokens: int
+    cache_read_input_tokens: int
+    cost_usd: float
+
+
+def _extract_usage(result_event: dict) -> TokenUsage:
+    """Extract token counts and cost from the stream-json result event.
+
+    Args:
+        result_event: Parsed JSON dict from a stream-json result line.
+
+    Returns:
+        TokenUsage with extracted values, falling back to zeros if fields
+        are missing.
+    """
+    if not isinstance(result_event, dict):
+        return TokenUsage(0, 0, 0, 0, 0.0)
+
+    usage = result_event.get("usage", {})
+    if not isinstance(usage, dict):
+        usage = {}
+
+    return TokenUsage(
+        input_tokens=int(usage.get("input_tokens", 0)),
+        output_tokens=int(usage.get("output_tokens", 0)),
+        cache_creation_input_tokens=int(usage.get("cache_creation_input_tokens", 0)),
+        cache_read_input_tokens=int(usage.get("cache_read_input_tokens", 0)),
+        cost_usd=float(result_event.get("total_cost_usd", 0.0)),
+    )
+
+
+_zero_cost_streak: int = 0
+_token_totals: dict[str, float] = {}
+
+
+def _log_token_usage(operation: str, usage: TokenUsage, elapsed: float, model: str = "unknown") -> None:
+    """Append a JSONL record to the token usage log.
+
+    Args:
+        operation: Name of the Claude CLI operation.
+        usage: Extracted token usage data.
+        elapsed: Wall-clock seconds for the invocation.
+        model: Model name used for the invocation.
+    """
+    record = {
+        "ts": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "op": operation,
+        "model": model,
+        "in": usage.input_tokens,
+        "out": usage.output_tokens,
+        "cache_in": usage.cache_creation_input_tokens,
+        "cache_read": usage.cache_read_input_tokens,
+        "cost": usage.cost_usd,
+        "dur": round(elapsed, 2),
+        "rid": RUN_ID,
+    }
+    _token_totals[operation] = _token_totals.get(operation, 0.0) + usage.cost_usd
+
+    try:
+        TOKEN_USAGE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(TOKEN_USAGE_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception as e:
+        log(f"Token usage log write error: {e}")
+
+
 async def update_loop(config: dict) -> None:
     """Periodically check for updates and notify the user."""
     update_cfg = config.get("auto_update", {})
@@ -713,6 +810,13 @@ async def heartbeat_loop() -> None:
             HEARTBEAT_PATH.write_text(datetime.now().isoformat())
         except Exception:
             pass
+
+        if _token_totals:
+            total_cost = sum(_token_totals.values())
+            top_ops = sorted(_token_totals.items(), key=lambda x: x[1], reverse=True)[:3]
+            top_str = ", ".join(f"{op}=${cost:.2f}" for op, cost in top_ops)
+            log(f"TOKEN SUMMARY: total=${total_cost:.4f} since startup | top: {top_str}")
+
         await asyncio.sleep(60)
 
 

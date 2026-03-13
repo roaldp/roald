@@ -9,3 +9,6 @@ SETUP_CONVERSATION.md
 
 # Conductor local context
 .context/
+
+# Agent memory
+memory/
