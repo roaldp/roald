@@ -1,0 +1,57 @@
+# Repository Conventions
+
+## Directory Structure
+
+```
+.conductor/              # Conductor workspace config
+  conductor.json         # Setup script reference
+  conductor-setup.sh     # Environment symlinker
+
+.agenticcoding/          # Agentic coding configuration
+  guidelines/            # Coding and repository conventions
+
+.docs/                   # Documentation and design specs
+  plans/                 # Implementation plans (yyyy.mm.dd-name-of-plan)
+
+prompts/                 # Pulse prompt variants (onboarding, full, reactive)
+scripts/                 # Shell and Python scripts for running/setup
+templates/               # Templates for mind, knowledge index, etc.
+
+CLAUDE.md                # Agent interaction guidelines
+config.template.yaml     # Template for local config.yaml
+pulse.py                 # Main Pulse application entry point
+```
+
+## Plan Files
+
+Plans are stored in `.docs/plans/` with the naming convention:
+```
+yyyy.mm.dd-name-of-plan.md
+```
+
+Each plan follows a standard structure:
+1. High level goal
+2. File tree (new/modified/deleted files)
+3. Per-file methods and types/DTOs
+4. Important technical notes (optional)
+5. Phases with todos
+6. Success criteria
+
+## Conventions
+
+- Keep git commit messages factual, no adjectives, no "Generated with" tags
+
+## Testing
+
+### TypeScript
+- Framework: Vitest with `vi.mock()` for mocking
+- Colocate unit tests with source files as `[filename].test.ts`
+- Integration tests go in `tests/integration/`
+- E2E tests: Playwright in `tests/e2e/api/` and `tests/e2e/ui/`
+
+### Python
+- Framework: pytest with `unittest.mock` for mocking
+- Colocate unit tests with source files as `test_[filename].py`
+- Integration tests go in `tests/integration/`
+- Run tests: `pytest` from the project root
+- Configuration in `pyproject.toml` under `[tool.pytest.ini_options]`
