@@ -34,11 +34,14 @@ LOCK_PATH = BASE_DIR / "logs" / ".pulse_lock"
 UPDATE_PENDING_PATH = BASE_DIR / "logs" / ".update_pending"
 SKIP_MARKER_PATH = BASE_DIR / "logs" / ".update_skipped_at"
 LAST_GOOD_COMMIT_PATH = BASE_DIR / "logs" / ".last_good_commit"
+SLACK_LAST_TS_PATH = BASE_DIR / "logs" / ".slack_last_ts"
 LOG_PATH = BASE_DIR / "logs" / "pulse.log"
 RESTART_EXIT_CODE = 42
 PROMPT_FULL = BASE_DIR / "prompts" / "pulse_full.md"
+PROMPT_CHECK = BASE_DIR / "prompts" / "pulse_check.md"
 PROMPT_ONBOARDING = BASE_DIR / "prompts" / "pulse_onboarding.md"
 PROMPT_REACTIVE = BASE_DIR / "prompts" / "pulse_reactive.md"
+UPDATES_JSONL_PATH = BASE_DIR / "logs" / "pulse_updates.jsonl"
 TEMPLATES_DIR = BASE_DIR / "templates"
 MIND_TEMPLATE_PATH = TEMPLATES_DIR / "mind.template.md"
 KNOWLEDGE_INDEX_TEMPLATE_PATH = TEMPLATES_DIR / "knowledge_index.template.md"
@@ -56,6 +59,33 @@ SLACK_OUTBOUND_TOOLS = {
     "mcp__claude_ai_Slack__slack_send_message",
     "mcp__claude_ai_Slack__slack_schedule_message",
 }
+
+# Sliding-window rate limiter for outbound Slack messages.
+# _record_slack_send() is called at TOOL START inside run_claude (authoritative).
+# _slack_at_limit() is checked BEFORE initiating any send operation so we can
+# abort early. Together they form a hard circuit breaker against feedback loops.
+SLACK_SEND_WINDOW = 60       # seconds
+SLACK_SEND_LIMIT  = 5        # max messages per window
+_slack_send_times: collections.deque = collections.deque()
+
+
+def _record_slack_send() -> None:
+    """Record that an outbound Slack message was just sent."""
+    _slack_send_times.append(time.monotonic())
+
+
+def _slack_at_limit() -> bool:
+    """Return True if the send rate limit is currently exceeded."""
+    now = time.monotonic()
+    while _slack_send_times and now - _slack_send_times[0] > SLACK_SEND_WINDOW:
+        _slack_send_times.popleft()
+    exceeded = len(_slack_send_times) >= SLACK_SEND_LIMIT
+    if exceeded:
+        log(
+            f"SLACK RATE LIMIT: {len(_slack_send_times)} messages in {SLACK_SEND_WINDOW}s "
+            "— send blocked to prevent feedback loop"
+        )
+    return exceeded
 
 
 def is_claude_echo_message(text: str) -> bool:
@@ -184,6 +214,111 @@ def ensure_runtime_files() -> None:
         log("Initialized knowledge/index.md from template")
 
 
+# ---------------------------------------------------------------------------
+# Two-phase pulse helpers: extract context from files without LLM calls
+# ---------------------------------------------------------------------------
+
+def get_connected_sources(config: dict) -> list[str]:
+    """Determine which sources are actually connected and enabled (no LLM call)."""
+    sources_config = config.get("sources", {})
+    mcp_path = BASE_DIR / ".context" / "mcp_tools.json"
+    connected_servers: set[str] = set()
+    if mcp_path.exists():
+        try:
+            inventory = json.loads(mcp_path.read_text(encoding="utf-8"))
+            for server in inventory.get("servers", []):
+                if "Connected" in str(server):
+                    connected_servers.add(str(server).lower())
+        except Exception:
+            pass
+
+    source_mcp_keywords = {
+        "slack": "slack",
+        "gmail": "gmail",
+        "calendar": "calendar",
+        "fireflies": "fireflies",
+        "google_drive": "drive",
+    }
+    connected = []
+    for source, keyword in source_mcp_keywords.items():
+        if not sources_config.get(source, False):
+            continue
+        if any(keyword in s for s in connected_servers):
+            connected.append(source)
+    return connected
+
+
+def get_last_pulse_time() -> str:
+    """Extract Last Pulse timestamp from mind.md (no LLM call)."""
+    if not MIND_PATH.exists():
+        return "_No pulses yet._"
+    text = MIND_PATH.read_text(encoding="utf-8")
+    match = re.search(r"## Last Pulse\n(.+)", text)
+    if match:
+        return match.group(1).strip()
+    return "_No pulses yet._"
+
+
+def get_next_pulse_instructions() -> str:
+    """Extract Next Pulse Instructions section from mind.md (no LLM call)."""
+    if not MIND_PATH.exists():
+        return "_No instructions._"
+    text = MIND_PATH.read_text(encoding="utf-8")
+    match = re.search(
+        r"## Next Pulse Instructions\n(.*?)(?=\n## |\Z)", text, re.DOTALL
+    )
+    if match:
+        instructions = match.group(1).strip()
+        return instructions if instructions else "_No instructions._"
+    return "_No instructions._"
+
+
+def update_last_pulse_time(config: dict) -> None:
+    """Update the Last Pulse timestamp in mind.md directly (no LLM call)."""
+    if not MIND_PATH.exists():
+        return
+    text = MIND_PATH.read_text(encoding="utf-8")
+    new_time = current_time_iso(config)
+    updated = re.sub(r"(## Last Pulse\n).*", rf"\g<1>{new_time}", text)
+    if updated != text:
+        MIND_PATH.write_text(updated, encoding="utf-8")
+
+
+def append_pulse_update(update: dict) -> None:
+    """Append a structured event to the JSONL log (no LLM call)."""
+    UPDATES_JSONL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    update["timestamp"] = datetime.now().isoformat()
+    with open(UPDATES_JSONL_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(update, ensure_ascii=False) + "\n")
+
+
+def run_consolidation() -> None:
+    """Run the consolidation script to merge JSONL updates into mind.md."""
+    script = BASE_DIR / "scripts" / "consolidate.py"
+    if not script.exists():
+        return
+    if not UPDATES_JSONL_PATH.exists():
+        return
+    # Skip if JSONL is empty
+    content = UPDATES_JSONL_PATH.read_text(encoding="utf-8").strip()
+    if not content:
+        return
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script)],
+            cwd=str(BASE_DIR),
+            timeout=30,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            log(f"CONSOLIDATION OK: {result.stdout.strip()}")
+        else:
+            log(f"CONSOLIDATION FAIL: {result.stderr.strip()}")
+    except Exception as e:
+        log(f"CONSOLIDATION ERROR: {e}")
+
+
 def _short_text(value: object, limit: int = 160) -> str:
     text = str(value or "").replace("\n", " ").strip()
     return text if len(text) <= limit else text[:limit] + "..."
@@ -265,6 +400,7 @@ def run_claude(
                 if tool_name in SLACK_OUTBOUND_TOOLS:
                     channel = tool_input.get("channel_id", "?")
                     text_preview = tool_input.get("text") or tool_input.get("message") or ""
+                    _record_slack_send()
                     log(
                         "SLACK OUTBOUND START: "
                         f"channel={channel} tool={tool_name} text={_short_text(text_preview)}"
@@ -295,16 +431,43 @@ def run_claude(
     return result_text
 
 
-def poll_slack_messages(config: dict, channel_id: str) -> list[dict]:
+def poll_slack_messages(
+    config: dict,
+    channel_id: str,
+    ack_after_ts: Optional[str] = None,
+    ack_user_id: str = "",
+) -> list[dict]:
+    """Read recent messages from a Slack channel.
+
+    If ack_after_ts and ack_user_id are set, the model will also send a brief
+    acknowledgment for any message from that user newer than ack_after_ts —
+    all within the same subprocess, so no extra startup cost.
+    """
     fast_model = config.get("slack_poll_model", "haiku")
+
+    if ack_after_ts and ack_user_id:
+        ack_clause = (
+            f" If any message has ts > {ack_after_ts} and user == '{ack_user_id}',"
+            f" send a brief 1-sentence ack to channel {channel_id} BEFORE the JSON"
+            f" (e.g. 'On it!' or 'Got it, looking into that now')."
+            f" Then output the JSON."
+        )
+        allowed = (
+            "mcp__claude_ai_Slack__slack_read_channel,"
+            "mcp__claude_ai_Slack__slack_send_message"
+        )
+    else:
+        ack_clause = ""
+        allowed = "mcp__claude_ai_Slack__slack_read_channel"
+
     prompt = (
-        f"Read channel {channel_id} (last 5). "
-        "Reply ONLY with JSON: [{\"ts\":\"...\",\"user\":\"...\",\"text\":\"...\"}]"
+        f"Read channel {channel_id} (last 5).{ack_clause} "
+        "Reply with JSON: [{\"ts\":\"...\",\"user\":\"...\",\"text\":\"...\"}]"
     )
     text = run_claude(
         prompt,
         config,
-        allowed_tools="mcp__claude_ai_Slack__slack_read_channel",
+        allowed_tools=allowed,
         operation=f"poll[{channel_id}]",
         model_override=fast_model,
     )
@@ -323,10 +486,17 @@ async def slack_loop(config: dict) -> None:
     user_id = str(config.get("slack_user_id", "")).strip()
     channel_id = slack_channel(config)
 
+    # Load last_ts from disk so restarts don't replay old messages
     last_ts: Optional[str] = None
+    try:
+        if SLACK_LAST_TS_PATH.exists():
+            last_ts = SLACK_LAST_TS_PATH.read_text().strip() or None
+    except Exception:
+        pass
+
     active_pulse: Optional[asyncio.Task] = None
     pending_queue: collections.deque[str] = collections.deque(maxlen=5)
-    log(f"Slack listener started (channel={channel_id}, interval={interval}s)")
+    log(f"Slack listener started (channel={channel_id}, interval={interval}s, last_ts={last_ts})")
 
     while True:
         await asyncio.sleep(interval)
@@ -338,6 +508,16 @@ async def slack_loop(config: dict) -> None:
                     log(f"PULSE REACTIVE ERROR: background task: {exc}")
                 active_pulse = None
 
+                # Advance watermark to now. Pulse just finished so its response_ts
+                # < time.time(). +1s absorbs local/Slack clock skew.
+                last_ts = f"{time.time() + 1:.6f}"
+                try:
+                    SLACK_LAST_TS_PATH.parent.mkdir(parents=True, exist_ok=True)
+                    SLACK_LAST_TS_PATH.write_text(last_ts)
+                except Exception:
+                    pass
+                log(f"SLACK WATERMARK ADVANCED: last_ts={last_ts}")
+
                 # Start next queued message if any
                 if pending_queue:
                     queued_text = pending_queue.popleft()
@@ -346,7 +526,14 @@ async def slack_loop(config: dict) -> None:
                         run_reactive_pulse(config, queued_text, channel_id=channel_id)
                     )
 
-            messages = poll_slack_messages(config, channel_id)
+            # Disable inline ack if rate limit is already exceeded
+            ack_ts   = last_ts  if not _slack_at_limit() else None
+            ack_user = user_id  if not _slack_at_limit() else ""
+            messages = poll_slack_messages(
+                config, channel_id,
+                ack_after_ts=ack_ts,
+                ack_user_id=ack_user,
+            )
             if not messages:
                 continue
 
@@ -381,14 +568,8 @@ async def slack_loop(config: dict) -> None:
                 if await handle_update_command(config, user_text):
                     continue
 
-                # Phase 1: Instant context-aware ack (runs in thread to not block loop)
-                log(f"SLACK ACK DISPATCH: channel={channel_id}")
-                loop = asyncio.get_event_loop()
-                loop.run_in_executor(
-                    None, send_slack_ack, config, channel_id, user_text
-                )
-
-                # Phase 2: Full reactive pulse (non-blocking background task)
+                # Ack was already sent inline by the poll subprocess above.
+                # Start full reactive pulse (non-blocking background task).
                 if active_pulse and not active_pulse.done():
                     pending_queue.append(user_text)
                     log(f"PULSE REACTIVE QUEUED: queue_size={len(pending_queue)} text={_short_text(user_text, 80)}")
@@ -397,7 +578,21 @@ async def slack_loop(config: dict) -> None:
                         run_reactive_pulse(config, user_text, channel_id=channel_id)
                     )
 
-            last_ts = newest_ts
+            # Use current time as watermark when new messages were processed.
+            # This ensures any acks/responses Claude just sent (which have a ts
+            # slightly after the user's message) are already behind the watermark
+            # on the next poll, preventing echo loops.
+            if new_messages:
+                # Watermark = now. We set this AFTER the ack was already sent,
+                # so ack_ts < time.time(). +1s absorbs any local/Slack clock skew.
+                last_ts = f"{time.time() + 1:.6f}"
+            else:
+                last_ts = newest_ts
+            try:
+                SLACK_LAST_TS_PATH.parent.mkdir(parents=True, exist_ok=True)
+                SLACK_LAST_TS_PATH.write_text(last_ts)
+            except Exception:
+                pass
 
         except Exception as e:
             log(f"Slack loop error: {e}")
@@ -413,6 +608,8 @@ MESSAGE_TOO_LONG_REPLY = (
 
 def send_slack_message(config: dict, channel_id: str, text: str) -> None:
     """Send an exact message to Slack using the fast model."""
+    if _slack_at_limit():
+        return
     fast_model = config.get("slack_poll_model", "haiku")
     prompt = f'Send this exact message to channel {channel_id}: "{text}"'
     try:
@@ -426,27 +623,6 @@ def send_slack_message(config: dict, channel_id: str, text: str) -> None:
     except Exception as e:
         log(f"SLACK OUTBOUND FAIL: channel={channel_id} error={e}")
 
-
-def send_slack_ack(config: dict, channel_id: str, user_message: str) -> None:
-    """Send a brief context-aware acknowledgment while the full pulse processes."""
-    fast_model = config.get("slack_poll_model", "haiku")
-    prompt = (
-        f"The user just sent this message: \"{user_message[:200]}\"\n\n"
-        f"Send a brief 1-sentence acknowledgment to Slack channel {channel_id}. "
-        "Show you understood what they need. Keep it under 15 words. "
-        "Be natural and direct — e.g. 'Looking into that now' or 'On it, checking your calendar'. "
-        "Do NOT answer the question, just acknowledge."
-    )
-    try:
-        run_claude(
-            prompt, config,
-            allowed_tools="mcp__claude_ai_Slack__slack_send_message",
-            operation="slack_ack",
-            model_override=fast_model,
-        )
-        log(f"SLACK ACK SENT: channel={channel_id} for={_short_text(user_message, 80)}")
-    except Exception as e:
-        log(f"SLACK ACK FAIL: channel={channel_id} error={e}")
 
 
 def _datamark(text: str, marker: str = "^") -> str:
@@ -490,6 +666,12 @@ async def run_reactive_pulse(config: dict, user_message: str, channel_id: str = 
 
         output = run_claude(prompt, config, operation="reactive_pulse", system_prompt=system)
         log(f"PULSE REACTIVE END: output_len={len(output)}")
+
+        append_pulse_update({
+            "type": "reactive",
+            "message_preview": _short_text(user_message, 80),
+            "output_len": len(output),
+        })
     except Exception as e:
         log(f"PULSE REACTIVE ERROR: {e}")
     finally:
@@ -516,7 +698,7 @@ def refresh_mcp_inventory() -> None:
 # Auto-update helpers
 # ---------------------------------------------------------------------------
 
-def check_for_updates(config: dict) -> dict | None:
+def check_for_updates(config: dict) -> Optional[dict]:
     """Check upstream for new commits. Returns info dict or None if up-to-date."""
     branch = config.get("auto_update", {}).get("branch", "main")
     try:
@@ -616,6 +798,8 @@ def apply_update(config: dict, force: bool = False) -> str:
 
 def _send_slack_message(config: dict, message: str) -> None:
     """Send a simple Slack message to the configured channel."""
+    if _slack_at_limit():
+        return
     channel = slack_channel(config)
     prompt = f"Send this exact message to Slack channel {channel}:\n\n{message}"
     try:
@@ -766,34 +950,143 @@ async def update_loop(config: dict) -> None:
         await asyncio.sleep(interval_seconds)
 
 
-async def run_full_pulse(config: dict) -> None:
+async def run_check_pulse(config: dict) -> Optional[dict]:
+    """Lightweight check: scan sources for new items using the cheap model.
+
+    Returns the parsed check result dict, or None if check failed.
+    The result contains 'recommended_action': 'deep_pulse' or 'none'.
+    """
     if not acquire_lock():
-        log("PULSE FULL SKIP: locked")
+        log("PULSE CHECK SKIP: locked")
+        return None
+    try:
+        log("PULSE CHECK START")
+
+        if not PROMPT_CHECK.exists():
+            log("PULSE CHECK SKIP: prompt file missing, falling back to deep pulse")
+            return {"recommended_action": "deep_pulse"}
+
+        # Pre-compute context so the LLM doesn't need to read any files
+        connected = get_connected_sources(config)
+        last_pulse = get_last_pulse_time()
+        instructions = get_next_pulse_instructions()
+
+        template = PROMPT_CHECK.read_text(encoding="utf-8")
+        prompt = (
+            template
+            .replace("{{CURRENT_TIME}}", current_time_iso(config))
+            .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
+            .replace("{{CONNECTED_SOURCES}}", ", ".join(connected) if connected else "none")
+            .replace("{{LAST_PULSE_TIME}}", last_pulse)
+            .replace("{{NEXT_PULSE_INSTRUCTIONS}}", instructions)
+        )
+
+        check_model = config.get("check_pulse_model", config.get("slack_poll_model", "haiku"))
+        output = run_claude(
+            prompt, config,
+            operation="check_pulse",
+            model_override=check_model,
+        )
+
+        # Parse JSON from output
+        start = output.find("{")
+        end = output.rfind("}") + 1
+        if start == -1 or end == 0:
+            log("PULSE CHECK WARN: no JSON in output, defaulting to deep pulse")
+            return {"recommended_action": "deep_pulse"}
+
+        try:
+            result = json.loads(output[start:end])
+        except json.JSONDecodeError:
+            log("PULSE CHECK WARN: invalid JSON, defaulting to deep pulse")
+            return {"recommended_action": "deep_pulse"}
+
+        action = result.get("recommended_action", "none")
+        new_items = result.get("new_items_total", 0)
+        log(f"PULSE CHECK END: new_items={new_items} action={action}")
+
+        # Update Last Pulse timestamp directly — no LLM needed
+        update_last_pulse_time(config)
+
+        # Log the check result to JSONL
+        append_pulse_update({
+            "type": "check",
+            "new_items": new_items,
+            "action": action,
+            "sources": result.get("sources", {}),
+            "instruction_results": result.get("instruction_results", []),
+        })
+
+        return result
+
+    except Exception as e:
+        log(f"PULSE CHECK ERROR: {e}")
+        return None
+    finally:
+        release_lock()
+
+
+async def run_deep_pulse(config: dict, check_context: Optional[dict] = None) -> None:
+    """Full processing pulse — scans sources, updates mind.md, notifies user.
+
+    Called when run_check_pulse finds items to process, or on first run (onboarding).
+    If check_context is provided, it's appended to the prompt so the deep pulse
+    knows what was already found and can skip re-scanning empty sources.
+    """
+    if not acquire_lock():
+        log("PULSE DEEP SKIP: locked")
         return
     try:
         refresh_mcp_inventory()
         first_run = is_first_run()
         prompt_path = PROMPT_ONBOARDING if (first_run and PROMPT_ONBOARDING.exists()) else PROMPT_FULL
-        pulse_type = "onboarding" if first_run and PROMPT_ONBOARDING.exists() else "full"
-        log(f"PULSE FULL START: type={pulse_type}")
+        pulse_type = "onboarding" if first_run and PROMPT_ONBOARDING.exists() else "deep"
+        log(f"PULSE DEEP START: type={pulse_type}")
         template = prompt_path.read_text()
         prompt = (
             template
             .replace("{{CURRENT_TIME}}", current_time_iso(config))
             .replace("{{SLACK_CHANNEL_ID}}", slack_channel(config))
         )
-        output = run_claude(prompt, config, operation="full_pulse")
-        log(f"PULSE FULL END: output_len={len(output)}")
+        # Inject check results so the deep pulse skips re-scanning empty sources
+        if check_context and not first_run:
+            prompt += (
+                "\n\n## Pre-scan Results (from check pulse)\n"
+                "The check pulse already scanned sources and found:\n"
+                f"```json\n{json.dumps(check_context, indent=2)}\n```\n"
+                "Focus on processing the sources with new items. "
+                "Skip re-scanning sources that showed 0 new items.\n"
+            )
+        output = run_claude(prompt, config, operation="deep_pulse")
+        log(f"PULSE DEEP END: output_len={len(output)}")
+
+        append_pulse_update({"type": "deep", "output_len": len(output)})
+
     except Exception as e:
-        log(f"PULSE FULL ERROR: {e}")
+        log(f"PULSE DEEP ERROR: {e}")
     finally:
         release_lock()
+
+
+async def run_full_pulse(config: dict) -> None:
+    """Backwards-compatible wrapper: runs check → deep two-phase pulse.
+
+    On first run (onboarding), skips check and runs deep pulse directly.
+    Used by --once-full CLI flag.
+    """
+    if is_first_run():
+        await run_deep_pulse(config)
+        return
+
+    check_result = await run_check_pulse(config)
+    if check_result and check_result.get("recommended_action") == "deep_pulse":
+        await run_deep_pulse(config, check_result)
 
 
 async def timer_loop(config: dict) -> None:
     interval_minutes = config.get("full_pulse_interval_minutes", 30)
     interval_seconds = interval_minutes * 60
-    log(f"Timer loop started (interval={interval_minutes}min)")
+    log(f"Timer loop started (interval={interval_minutes}min, two-phase: check → deep)")
 
     # Run immediately on startup
     await run_full_pulse(config)
@@ -815,6 +1108,23 @@ async def heartbeat_loop() -> None:
         except Exception:
             pass
         await asyncio.sleep(60)
+
+
+async def consolidation_loop(config: dict) -> None:
+    """Periodically merge JSONL pulse updates into mind.md (every 6h)."""
+    interval_hours = config.get("consolidation_interval_hours", 6)
+    interval_seconds = interval_hours * 3600
+    log(f"Consolidation loop started (interval={interval_hours}h)")
+
+    # Wait before first consolidation
+    await asyncio.sleep(interval_seconds)
+
+    while True:
+        try:
+            run_consolidation()
+        except Exception as e:
+            log(f"Consolidation loop error: {e}")
+        await asyncio.sleep(interval_seconds)
 
 
 def parse_args() -> argparse.Namespace:
@@ -890,6 +1200,7 @@ async def main(args: argparse.Namespace) -> None:
         slack_loop(config),
         update_loop(config),
         heartbeat_loop(),
+        consolidation_loop(config),
     )
 
 

@@ -4,6 +4,8 @@
 full_pulse_interval_minutes: 30
 slack_poll_interval_seconds: 1
 slack_poll_model: "haiku"          # cheap/fast model for polling + ack
+check_pulse_model: "haiku"         # model for lightweight check pulses (runs every 30min)
+consolidation_interval_hours: 6    # how often to merge JSONL updates into mind.md
 
 # User identity (fill locally in config.yaml; do not commit secrets or IDs)
 slack_user_id: ""   # Required. Your Slack user ID, e.g. U01XXXXXXX
