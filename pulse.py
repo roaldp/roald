@@ -10,7 +10,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 try:
@@ -32,6 +32,7 @@ UPDATE_PENDING_PATH = BASE_DIR / "logs" / ".update_pending"
 SKIP_MARKER_PATH = BASE_DIR / "logs" / ".update_skipped_at"
 LAST_GOOD_COMMIT_PATH = BASE_DIR / "logs" / ".last_good_commit"
 LOG_PATH = BASE_DIR / "logs" / "pulse.log"
+DETAIL_LOG_PATH = BASE_DIR / "logs" / "pulse_detail.jsonl"
 RESTART_EXIT_CODE = 42
 PROMPT_FULL = BASE_DIR / "prompts" / "pulse_full.md"
 PROMPT_ONBOARDING = BASE_DIR / "prompts" / "pulse_onboarding.md"
@@ -53,6 +54,166 @@ SLACK_OUTBOUND_TOOLS = {
     "mcp__claude_ai_Slack__slack_send_message",
     "mcp__claude_ai_Slack__slack_schedule_message",
 }
+
+
+# ============================================================================
+# DETAIL LOGGING TYPES
+# ============================================================================
+
+class ToolCallMetrics(TypedDict):
+    tool_id: str
+    tool_name: str
+    input_chars: int
+    subagent_type: Optional[str]
+    subagent_description: Optional[str]
+
+
+class ToolResultMetrics(TypedDict):
+    tool_id: str
+    tool_name: str
+    result_chars: int
+    result_est_tokens: int
+    is_error: bool
+
+
+class TurnMetrics(TypedDict):
+    turn: int
+    role: str
+    input_tokens: int
+    input_tokens_delta: Optional[int]
+    output_tokens: int
+    cache_creation: int
+    cache_read: int
+    tool_calls: list[ToolCallMetrics]
+    tool_results: list[ToolResultMetrics]
+
+
+class SubAgentMetrics(TypedDict):
+    tool_id: str
+    subagent_type: str
+    model: Optional[str]
+    turns: int
+    tool_calls: list[str]
+    result_chars: int
+
+
+class PulseDetailRecord(TypedDict):
+    v: int
+    rid: str
+    ts: str
+    op: str
+    model: str
+    dur_s: float
+    num_turns: int
+    total_cost_usd: float
+    prompt_chars: int
+    prompt_est_tokens: int
+    system_tools_count: int
+    system_mcp_servers: list[str]
+    usage: dict
+    model_usage: dict
+    subagents: list[SubAgentMetrics]
+    tools_summary: list[dict]
+    turns: Optional[list[TurnMetrics]]
+
+
+# ============================================================================
+# DETAIL LOGGING HELPERS
+# ============================================================================
+
+def _estimate_tokens(text: str) -> int:
+    """Estimate token count from text using chars/4 heuristic.
+
+    Args:
+        text: The text to estimate tokens for.
+
+    Returns:
+        Approximate token count.
+    """
+    return len(text) // 4
+
+
+def _build_tools_summary(
+    tool_calls_map: dict[str, dict],
+    tool_results_list: list[ToolResultMetrics],
+) -> list[dict]:
+    """Aggregate per-tool metrics from collected tool calls and results.
+
+    Args:
+        tool_calls_map: Dict of tool_id -> {name, input, input_chars}.
+        tool_results_list: List of all ToolResultMetrics collected.
+
+    Returns:
+        List of per-tool summary dicts sorted by total_result_chars descending.
+    """
+    summary: dict[str, dict] = {}
+    for tc in tool_calls_map.values():
+        name = tc.get("name", "unknown_tool")
+        if name not in summary:
+            summary[name] = {
+                "tool_name": name,
+                "call_count": 0,
+                "total_input_chars": 0,
+                "total_result_chars": 0,
+                "total_result_est_tokens": 0,
+                "error_count": 0,
+            }
+        summary[name]["call_count"] += 1
+        summary[name]["total_input_chars"] += tc.get("input_chars", 0)
+
+    for tr in tool_results_list:
+        name = tr["tool_name"]
+        if name not in summary:
+            summary[name] = {
+                "tool_name": name,
+                "call_count": 0,
+                "total_input_chars": 0,
+                "total_result_chars": 0,
+                "total_result_est_tokens": 0,
+                "error_count": 0,
+            }
+        summary[name]["total_result_chars"] += tr["result_chars"]
+        summary[name]["total_result_est_tokens"] += tr["result_est_tokens"]
+        if tr["is_error"]:
+            summary[name]["error_count"] += 1
+
+    return sorted(summary.values(), key=lambda s: s["total_result_chars"], reverse=True)
+
+
+def _write_detail_record(record: PulseDetailRecord) -> None:
+    """Append a detail record as a JSON line to pulse_detail.jsonl.
+
+    Args:
+        record: The PulseDetailRecord to write.
+    """
+    try:
+        DETAIL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(DETAIL_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, separators=(",", ":")) + "\n")
+    except Exception as e:
+        print(f"[{now_str()}] DETAIL LOG ERROR: {e}", flush=True)
+
+
+def _measure_content_chars(content: object) -> int:
+    """Measure the character size of tool result content.
+
+    Args:
+        content: Content from a tool_result block (string or list of blocks).
+
+    Returns:
+        Total character count.
+    """
+    if isinstance(content, str):
+        return len(content)
+    if isinstance(content, list):
+        total = 0
+        for block in content:
+            if isinstance(block, str):
+                total += len(block)
+            elif isinstance(block, dict) and "text" in block:
+                total += len(block["text"])
+        return total
+    return 0
 
 
 def is_claude_echo_message(text: str) -> bool:
@@ -200,8 +361,20 @@ def run_claude(
     allowed_tools: str = ALLOWED_TOOLS,
     operation: str = "claude_run",
 ) -> str:
+    """Run a Claude CLI invocation, parse stream-json events, and log detail metrics.
+
+    Args:
+        prompt: The prompt text to send to Claude.
+        config: Configuration dictionary.
+        allowed_tools: Comma-separated list of allowed tool patterns.
+        operation: Name of the operation (for logging).
+
+    Returns:
+        The result text from Claude's response.
+    """
     log(f"EXEC START: {operation}")
     started = time.monotonic()
+    prompt_chars = len(prompt)
     cmd = [
         config.get("claude_command", "claude"),
         "-p", prompt,
@@ -209,9 +382,9 @@ def run_claude(
         "--output-format", "stream-json",
         "--verbose",
     ]
-    model = config.get("claude_model", "")
-    if model:
-        cmd += ["--model", model]
+    model_config = config.get("claude_model", "")
+    if model_config:
+        cmd += ["--model", model_config]
     # Clear CLAUDECODE env var to allow spawning Claude from within a Claude session
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     timeout_seconds = int(config.get("claude_timeout_seconds", 300))
@@ -230,10 +403,31 @@ def run_claude(
         error_tail = _short_text(result.stderr or result.stdout, limit=400)
         raise RuntimeError(f"claude exited {result.returncode}: {error_tail}")
 
+    # --- Parse stream-json events ---
     result_text = ""
     tool_calls: dict[str, dict] = {}
     tool_starts = 0
     tool_ends = 0
+
+    # Detail metrics collectors
+    turns_list: list[TurnMetrics] = []
+    all_tool_results: list[ToolResultMetrics] = []
+    system_tools_count = 0
+    system_mcp_servers: list[str] = []
+    system_model = ""
+    result_cost_usd = 0.0
+    result_duration_ms = 0
+    result_num_turns = 0
+    result_usage: dict = {}
+    result_model_usage: dict = {}
+    turn_counter = 0
+    prev_assistant_input_tokens = 0
+
+    # Sub-agent tracking
+    subagent_stack: list[dict] = []  # stack of {tool_id, subagent_type, description, model, turns, tool_calls, result_chars}
+    pending_agent_tool_ids: set[str] = set()  # Agent tool_use IDs awaiting system init
+    completed_subagents: list[SubAgentMetrics] = []
+
     for line in result.stdout.splitlines():
         line = line.strip()
         if not line:
@@ -244,15 +438,57 @@ def run_claude(
             continue
 
         event_type = event.get("type")
-        if event_type == "assistant":
+
+        if event_type == "system":
+            subtype = event.get("subtype")
+            if subtype == "init":
+                event_model = event.get("model")
+                if event_model is None and pending_agent_tool_ids:
+                    # Sub-agent init — push onto stack
+                    # Pick the most recent pending agent tool_id
+                    agent_tid = next(iter(pending_agent_tool_ids))
+                    pending_agent_tool_ids.discard(agent_tid)
+                    agent_info = tool_calls.get(agent_tid, {})
+                    agent_input = agent_info.get("input", {})
+                    subagent_stack.append({
+                        "tool_id": agent_tid,
+                        "subagent_type": str(agent_input.get("type", agent_input.get("subagent_type", "unknown"))),
+                        "description": str(agent_input.get("description", agent_input.get("prompt", "")))[:200],
+                        "model": None,
+                        "turns": 0,
+                        "tool_calls": [],
+                        "result_chars": 0,
+                    })
+                elif event_model is not None and not system_model:
+                    # Parent init
+                    system_model = str(event_model)
+                    tools = event.get("tools", [])
+                    system_tools_count = len(tools)
+                    mcp_servers = event.get("mcp_servers", [])
+                    system_mcp_servers = [
+                        f"{s.get('name', '?')}:{s.get('status', '?')}"
+                        for s in mcp_servers
+                    ]
+
+        elif event_type == "assistant":
             message = event.get("message", {})
+            usage = message.get("usage", {})
+            input_tokens = usage.get("input_tokens", 0)
+            output_tokens = usage.get("output_tokens", 0)
+            cache_creation = usage.get("cache_creation_input_tokens", 0)
+            cache_read = usage.get("cache_read_input_tokens", 0)
+
+            # Collect tool_use blocks
+            turn_tool_calls: list[ToolCallMetrics] = []
             for block in message.get("content", []):
                 if block.get("type") != "tool_use":
                     continue
                 tool_name = str(block.get("name", "unknown_tool"))
                 tool_id = str(block.get("id", ""))
                 tool_input = block.get("input", {})
-                tool_calls[tool_id] = {"name": tool_name, "input": tool_input}
+                input_json = json.dumps(tool_input, separators=(",", ":"))
+                input_chars = len(input_json)
+                tool_calls[tool_id] = {"name": tool_name, "input": tool_input, "input_chars": input_chars}
                 tool_starts += 1
                 log(f"TOOL START: {tool_name} input={_short_json(tool_input)}")
                 if tool_name in SLACK_OUTBOUND_TOOLS:
@@ -263,8 +499,48 @@ def run_claude(
                         f"channel={channel} tool={tool_name} text={_short_text(text_preview)}"
                     )
 
+                subagent_type = None
+                subagent_description = None
+                if tool_name == "Agent":
+                    subagent_type = str(tool_input.get("type", tool_input.get("subagent_type", "unknown")))
+                    subagent_description = str(tool_input.get("description", tool_input.get("prompt", "")))[:200]
+                    pending_agent_tool_ids.add(tool_id)
+
+                turn_tool_calls.append(ToolCallMetrics(
+                    tool_id=tool_id,
+                    tool_name=tool_name,
+                    input_chars=input_chars,
+                    subagent_type=subagent_type,
+                    subagent_description=subagent_description,
+                ))
+
+                # Track sub-agent tool calls
+                if subagent_stack:
+                    subagent_stack[-1]["tool_calls"].append(tool_name)
+
+            # Track sub-agent turns
+            if subagent_stack:
+                subagent_stack[-1]["turns"] += 1
+
+            turn_counter += 1
+            input_delta = input_tokens - prev_assistant_input_tokens if prev_assistant_input_tokens > 0 else None
+            prev_assistant_input_tokens = input_tokens
+
+            turns_list.append(TurnMetrics(
+                turn=turn_counter,
+                role="assistant",
+                input_tokens=input_tokens,
+                input_tokens_delta=input_delta,
+                output_tokens=output_tokens,
+                cache_creation=cache_creation,
+                cache_read=cache_read,
+                tool_calls=turn_tool_calls,
+                tool_results=[],
+            ))
+
         elif event_type == "user":
             message = event.get("message", {})
+            turn_tool_results: list[ToolResultMetrics] = []
             for block in message.get("content", []):
                 if block.get("type") != "tool_result":
                     continue
@@ -280,11 +556,96 @@ def run_claude(
                     channel = tool_input.get("channel_id", "?")
                     log(f"SLACK OUTBOUND END: channel={channel} tool={tool_name} status={status}")
 
+                # Measure tool result content size
+                content = block.get("content", "")
+                result_chars = _measure_content_chars(content)
+
+                tr = ToolResultMetrics(
+                    tool_id=tool_id,
+                    tool_name=tool_name,
+                    result_chars=result_chars,
+                    result_est_tokens=_estimate_tokens(str(content)),
+                    is_error=is_error,
+                )
+                turn_tool_results.append(tr)
+                all_tool_results.append(tr)
+
+                # Check if this tool_result closes a sub-agent
+                if subagent_stack and tool_id == subagent_stack[-1]["tool_id"]:
+                    sa = subagent_stack.pop()
+                    sa["result_chars"] = result_chars
+                    completed_subagents.append(SubAgentMetrics(
+                        tool_id=sa["tool_id"],
+                        subagent_type=sa["subagent_type"],
+                        model=sa["model"],
+                        turns=sa["turns"],
+                        tool_calls=sa["tool_calls"],
+                        result_chars=sa["result_chars"],
+                    ))
+
+            turn_counter += 1
+            turns_list.append(TurnMetrics(
+                turn=turn_counter,
+                role="user",
+                input_tokens=0,
+                input_tokens_delta=None,
+                output_tokens=0,
+                cache_creation=0,
+                cache_read=0,
+                tool_calls=[],
+                tool_results=turn_tool_results,
+            ))
+
         elif event_type == "result":
             result_text = str(event.get("result", ""))
+            result_cost_usd = float(event.get("cost_usd", 0) or event.get("total_cost_usd", 0) or 0)
+            result_duration_ms = int(event.get("duration_ms", 0) or 0)
+            result_num_turns = int(event.get("num_turns", 0) or 0)
+            result_usage = event.get("usage", {})
+            # Build model_usage from result event
+            raw_model_usage = event.get("modelUsage", {})
+            result_model_usage = {}
+            for m_name, m_data in raw_model_usage.items():
+                result_model_usage[m_name] = {
+                    "input_tokens": m_data.get("inputTokens", 0),
+                    "output_tokens": m_data.get("outputTokens", 0),
+                    "cache_read": m_data.get("cacheReadInputTokens", 0),
+                    "cache_creation": m_data.get("cacheCreationInputTokens", 0),
+                    "cost_usd": m_data.get("costUSD", 0.0),
+                }
 
     elapsed = time.monotonic() - started
     log(f"EXEC END: {operation} ({elapsed:.1f}s, tools started={tool_starts}, tools ended={tool_ends})")
+
+    # --- Write detail record ---
+    detail_enabled = config.get("detail_logging", True)
+    now = datetime.now()
+    record = PulseDetailRecord(
+        v=1,
+        rid=now.strftime("%Y%m%dT%H%M%S"),
+        ts=now.isoformat(),
+        op=operation,
+        model=system_model or str(model_config),
+        dur_s=round(elapsed, 2),
+        num_turns=result_num_turns or turn_counter,
+        total_cost_usd=result_cost_usd,
+        prompt_chars=prompt_chars,
+        prompt_est_tokens=_estimate_tokens(prompt),
+        system_tools_count=system_tools_count,
+        system_mcp_servers=system_mcp_servers,
+        usage={
+            "input_tokens": result_usage.get("input_tokens", 0),
+            "output_tokens": result_usage.get("output_tokens", 0),
+            "cache_creation": result_usage.get("cache_creation_input_tokens", 0),
+            "cache_read": result_usage.get("cache_read_input_tokens", 0),
+        },
+        model_usage=result_model_usage,
+        subagents=completed_subagents,
+        tools_summary=_build_tools_summary(tool_calls, all_tool_results),
+        turns=turns_list if detail_enabled else None,
+    )
+    _write_detail_record(record)
+
     return result_text
 
 

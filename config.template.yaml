@@ -32,3 +32,6 @@ auto_update:
   enabled: true
   check_interval_hours: 12
   branch: "main"
+
+# Detail logging: write per-invocation token breakdown to logs/pulse_detail.jsonl
+detail_logging: true
