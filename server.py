@@ -11,6 +11,7 @@ Usage:
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -205,6 +206,7 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
             cwd=str(BASE_DIR),
             env=env,
         )
+        _active_procs.add(proc)
     except Exception as e:
         yield {"event": "error", "data": {"message": str(e)}}
         return
@@ -315,8 +317,10 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
     except subprocess.TimeoutExpired:
         proc.kill()
         yield {"event": "error", "data": {"message": "claude timed out"}}
+        _active_procs.discard(proc)
         return
 
+    _active_procs.discard(proc)
     stderr_thread.join(timeout=2)
     if stderr_lines:
         log("STDERR: %s" % "".join(stderr_lines)[:500])
@@ -763,6 +767,24 @@ def init_conversation(ws_id: str, thread_id: str):
 # ---------------------------------------------------------------------------
 # Run directly
 # ---------------------------------------------------------------------------
+
+# Track active subprocesses for clean shutdown
+_active_procs = set()
+
+
+def _shutdown(signum, frame):
+    """Kill all active claude subprocesses and exit."""
+    for proc in list(_active_procs):
+        try:
+            proc.kill()
+        except Exception:
+            pass
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, _shutdown)
+signal.signal(signal.SIGTERM, _shutdown)
+
 
 if __name__ == "__main__":
     import uvicorn
