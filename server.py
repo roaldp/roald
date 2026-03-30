@@ -233,14 +233,19 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
 
             event_type = event.get("type", "")
 
+            # Log every event type for debugging
+            if event_type not in ("stream_event",):
+                log("STREAM [%s] type=%s" % (operation, event_type))
+
             if event_type == "assistant":
                 message = event.get("message", {})
                 for block in message.get("content", []):
-                    if block.get("type") == "text":
+                    block_type = block.get("type", "")
+                    if block_type == "text":
                         text = block.get("text", "")
                         full_text_parts.append(text)
                         yield {"event": "text_delta", "data": {"content": text}}
-                    elif block.get("type") == "tool_use":
+                    elif block_type == "tool_use":
                         tool_call = {
                             "id": block.get("id", "tu-%s" % uuid.uuid4().hex[:8]),
                             "name": block.get("name", ""),
@@ -248,26 +253,45 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
                             "status": "proposed",
                         }
                         tool_calls.append(tool_call)
+                        log("TOOL_USE: %s → %s (input keys: %s)" % (
+                            tool_call["id"], tool_call["name"],
+                            list(tool_call["input"].keys())
+                        ))
                         yield {"event": "tool_use", "data": tool_call}
-                    elif block.get("type") == "tool_result":
+                    elif block_type == "tool_result":
                         content = str(block.get("content", ""))
                         is_error = block.get("is_error", False)
                         tool_use_id = block.get("tool_use_id", "")
+                        # Log the full tool_result for debugging
+                        log("TOOL_RESULT: id=%s is_error=%s content_preview=%s" % (
+                            tool_use_id, is_error, content[:200] if content else "(empty)"
+                        ))
+                        # Also log raw block keys to see what fields exist
+                        log("TOOL_RESULT raw keys: %s" % list(block.keys()))
+                        # Detect errors from content even if is_error is False
+                        content_lower = content.lower()
+                        detected_error = is_error or any(err in content_lower for err in [
+                            "error", "permission denied", "unauthorized", "forbidden",
+                            "auth", "token expired", "not authenticated", "access denied",
+                        ])
                         # Update the matching tool call status
                         for tc in tool_calls:
                             if tc["id"] == tool_use_id:
-                                tc["status"] = "error" if is_error else "executed"
+                                tc["status"] = "error" if detected_error else "executed"
                                 tc["result"] = content
+                                log("TOOL_STATUS: %s → %s" % (tc["name"], tc["status"]))
                         yield {"event": "tool_result", "data": {
                             "tool_use_id": tool_use_id,
                             "content": content,
-                            "is_error": is_error,
+                            "is_error": detected_error,
                         }}
 
             elif event_type == "result":
                 result_text = str(event.get("result", ""))
                 # Check for permission denials
                 denials = event.get("permission_denials", [])
+                if denials:
+                    log("PERMISSION_DENIALS: %s" % json.dumps(denials, default=str))
                 for denial in denials:
                     tool_call = {
                         "id": "denied-%s" % uuid.uuid4().hex[:8],
@@ -277,6 +301,10 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
                     }
                     tool_calls.append(tool_call)
                     yield {"event": "tool_use", "data": tool_call}
+                # Log the result event summary
+                log("RESULT: text_len=%d denials=%d tool_calls=%d" % (
+                    len(result_text), len(denials), len(tool_calls)
+                ))
 
     except Exception as e:
         yield {"event": "error", "data": {"message": str(e)}}
