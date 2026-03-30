@@ -344,9 +344,14 @@ export function ChatMessage({ message, onApproveTool, onDenyTool }: ChatMessageP
   const isUser = message.role === "user"
   const [toolsExpanded, setToolsExpanded] = useState(false)
 
-  // Separate tool calls into read-only and action
-  const readOnlyTools = message.toolCalls?.filter((tc) => !isActionTool(tc.name)) || []
-  const actionTools = message.toolCalls?.filter((tc) => isActionTool(tc.name)) || []
+  // Separate tool calls: anything needing approval gets a full card,
+  // regardless of read/write classification. Only collapse tools that
+  // are already executed/approved/denied.
+  const needsApproval = (tc: ToolCall) =>
+    tc.status === "proposed" || tc.status === "needs_approval"
+  const pendingTools = message.toolCalls?.filter((tc) => needsApproval(tc)) || []
+  const completedReadOnly = message.toolCalls?.filter((tc) => !needsApproval(tc) && !isActionTool(tc.name)) || []
+  const completedActions = message.toolCalls?.filter((tc) => !needsApproval(tc) && isActionTool(tc.name)) || []
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
@@ -368,22 +373,30 @@ export function ChatMessage({ message, onApproveTool, onDenyTool }: ChatMessageP
           )
         )}
 
-        {/* Read-only tools: collapsed summary */}
-        {readOnlyTools.length > 0 && (
-          <ToolSummary
-            tools={readOnlyTools}
-            expanded={toolsExpanded}
-            onToggle={() => setToolsExpanded(!toolsExpanded)}
-          />
-        )}
-
-        {/* Action tools: full cards with approve/deny */}
-        {actionTools.map((tc) => (
+        {/* Tools needing approval: always show full card with buttons */}
+        {pendingTools.map((tc) => (
           <ActionToolCard
             key={tc.id}
             toolCall={tc}
             onApprove={() => onApproveTool?.(tc)}
             onDeny={() => onDenyTool?.(tc)}
+          />
+        ))}
+
+        {/* Completed read-only tools: collapsed summary */}
+        {completedReadOnly.length > 0 && (
+          <ToolSummary
+            tools={completedReadOnly}
+            expanded={toolsExpanded}
+            onToggle={() => setToolsExpanded(!toolsExpanded)}
+          />
+        )}
+
+        {/* Completed action tools: full cards (no buttons, already resolved) */}
+        {completedActions.map((tc) => (
+          <ActionToolCard
+            key={tc.id}
+            toolCall={tc}
           />
         ))}
 
