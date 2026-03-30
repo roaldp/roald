@@ -51,8 +51,8 @@ CONVERSATIONS_DIR = BASE_DIR / "conversations"
 PROMPTS_DIR = BASE_DIR / "prompts"
 
 # Pre-approve all MCP tools so they execute without interactive prompts.
-# Use wildcard mcp__* to match any MCP server UUID naming scheme.
-ALLOWED_TOOLS = "Read,Edit,MultiEdit,Write,Glob,Grep,mcp__*"
+# Each entry is passed as a separate arg to --allowedTools (variadic flag).
+ALLOWED_TOOLS = ["Read", "Edit", "MultiEdit", "Write", "Glob", "Grep", "mcp__*"]
 
 WORKSPACE_PROMPTS = {
     "ws-dealflow": "prompts/dd.md",
@@ -60,6 +60,7 @@ WORKSPACE_PROMPTS = {
     "ws-fundops": "prompts/relations.md",
     "ws-portfolio": "prompts/relations.md",
     "ws-email": None,
+    "ws-tasks": None,
 }
 
 # Workspace-specific context files (curated, workspace-scoped data)
@@ -69,6 +70,7 @@ WORKSPACE_CONTEXTS = {
     "ws-fundops": "contexts/fundops.md",
     "ws-portfolio": "contexts/portfolio.md",
     "ws-email": "contexts/email.md",
+    "ws-tasks": "contexts/tasks.md",
 }
 
 WORKSPACE_KEYWORDS = {
@@ -87,6 +89,7 @@ WORKSPACE_NAMES = {
     "ws-fundops": "Fund Operations",
     "ws-portfolio": "Portfolio & Relations",
     "ws-email": "Email Triage",
+    "ws-tasks": "Tasks & Projects",
 }
 
 # ---------------------------------------------------------------------------
@@ -109,8 +112,11 @@ def log(msg):
 
 
 def load_config():
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return {}
 
 
 def run_claude(prompt, config, allowed_tools=None, operation="claude_run"):
@@ -124,7 +130,10 @@ def run_claude(prompt, config, allowed_tools=None, operation="claude_run"):
         "--verbose",
     ]
     if allowed_tools:
-        cmd += ["--allowedTools", allowed_tools]
+        if isinstance(allowed_tools, list):
+            cmd += ["--allowedTools"] + allowed_tools
+        else:
+            cmd += ["--allowedTools"] + allowed_tools.split(",")
     model = config.get("claude_model", "")
     if model:
         cmd += ["--model", model]
@@ -190,7 +199,10 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
         "--verbose",
     ]
     if allowed_tools:
-        cmd += ["--allowedTools", allowed_tools]
+        if isinstance(allowed_tools, list):
+            cmd += ["--allowedTools"] + allowed_tools
+        else:
+            cmd += ["--allowedTools"] + allowed_tools.split(",")
     model = config.get("claude_model", "")
     if model:
         cmd += ["--model", model]
