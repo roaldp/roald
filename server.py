@@ -54,6 +54,11 @@ PROMPTS_DIR = BASE_DIR / "prompts"
 # Each entry is passed as a separate arg to --allowedTools (variadic flag).
 ALLOWED_TOOLS = ["Read", "Edit", "MultiEdit", "Write", "Glob", "Grep", "mcp__*"]
 
+# Model tiers — use fast/cheap model for high-volume ops, heavy model for reasoning.
+# Override via config.yaml: claude_model (default), claude_model_fast (fast tier).
+MODEL_FAST = "claude-haiku-4-5-20251001"
+MODEL_DEFAULT = ""  # empty = use CLI default (Sonnet)
+
 WORKSPACE_PROMPTS = {
     "ws-dealflow": "prompts/dd.md",
     "ws-dc": "prompts/sourcing.md",
@@ -122,8 +127,9 @@ def load_config():
     try:
         with open(CONFIG_PATH, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
-        log("CONFIG loaded: model=%s, command=%s, timeout=%s" % (
-            cfg.get("claude_model", "(default)"),
+        log("CONFIG loaded: model=%s, model_fast=%s, command=%s, timeout=%s" % (
+            cfg.get("claude_model", "(CLI default)"),
+            cfg.get("claude_model_fast", MODEL_FAST),
             cfg.get("claude_command", "claude"),
             cfg.get("claude_timeout_seconds", 300),
         ), "DEBUG")
@@ -133,8 +139,19 @@ def load_config():
         return {}
 
 
-def run_claude(prompt, config, allowed_tools=None, operation="claude_run"):
-    """Call claude CLI as subprocess and return the response text."""
+def get_model(config, tier="default"):
+    """Get model ID for a tier. Tiers: 'default' (reasoning), 'fast' (high-volume/fetch)."""
+    if tier == "fast":
+        return config.get("claude_model_fast", MODEL_FAST)
+    return config.get("claude_model", MODEL_DEFAULT)
+
+
+def run_claude(prompt, config, allowed_tools=None, operation="claude_run", model=None):
+    """Call claude CLI as subprocess and return the response text.
+
+    Args:
+        model: Override model. Pass get_model(config, "fast") for Haiku tier.
+    """
     log("EXEC START: %s" % operation)
     log("EXEC prompt_len=%d chars" % len(prompt), "DEBUG")
     started = time.monotonic()
@@ -149,9 +166,10 @@ def run_claude(prompt, config, allowed_tools=None, operation="claude_run"):
             cmd += ["--allowedTools"] + allowed_tools
         else:
             cmd += ["--allowedTools"] + allowed_tools.split(",")
-    model = config.get("claude_model", "")
-    if model:
-        cmd += ["--model", model]
+    effective_model = model or config.get("claude_model", "")
+    if effective_model:
+        cmd += ["--model", effective_model]
+    log("EXEC model=%s" % (effective_model or "(CLI default)"), "DEBUG")
 
     # Log the exact CLI command (redact prompt for brevity)
     cmd_display = [c if c != prompt else "<PROMPT:%d chars>" % len(prompt) for c in cmd]
@@ -221,11 +239,14 @@ def run_claude(prompt, config, allowed_tools=None, operation="claude_run"):
     return result_text
 
 
-def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_stream"):
+def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_stream", model=None):
     """Stream claude CLI output via subprocess.Popen, yielding parsed SSE events.
 
     Yields dicts: {"event": "<type>", "data": {...}}
     Event types: text_delta, tool_use, tool_result, done, error
+
+    Args:
+        model: Override model. Pass get_model(config, "fast") for Haiku tier.
     """
     log("STREAM START: %s" % operation)
     log("STREAM prompt_len=%d chars" % len(prompt), "DEBUG")
@@ -241,9 +262,10 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
             cmd += ["--allowedTools"] + allowed_tools
         else:
             cmd += ["--allowedTools"] + allowed_tools.split(",")
-    model = config.get("claude_model", "")
-    if model:
-        cmd += ["--model", model]
+    effective_model = model or config.get("claude_model", "")
+    if effective_model:
+        cmd += ["--model", effective_model]
+    log("STREAM model=%s" % (effective_model or "(CLI default)"), "DEBUG")
 
     # Log the exact CLI command (redact prompt for brevity)
     cmd_display = [c if c != prompt else "<PROMPT:%d chars>" % len(prompt) for c in cmd]
@@ -626,6 +648,8 @@ log("SERVER starting — Workspace Chat API")
 log("SERVER base_dir=%s" % BASE_DIR)
 log("SERVER log_path=%s" % LOG_PATH)
 log("SERVER log_level=%s" % _MIN_LOG_LEVEL)
+log("SERVER model_default=%s" % (MODEL_DEFAULT or "(CLI default)"))
+log("SERVER model_fast=%s (init, approve, fetch)" % MODEL_FAST)
 log("SERVER workspaces: %s" % list(WORKSPACE_NAMES.keys()))
 log("SERVER allowedTools: %s" % ALLOWED_TOOLS)
 log("SERVER config_path=%s (exists=%s)" % (CONFIG_PATH, CONFIG_PATH.exists()))
@@ -830,6 +854,7 @@ def approve_tool(req: ApproveRequest):
             prompt, config,
             allowed_tools=allowed,
             operation="approve_%s" % req.toolName,
+            model=get_model(config, "fast"),
         )
     except Exception as e:
         log("API approve ERROR: %s → %s" % (req.toolName, e), "ERROR")
@@ -907,6 +932,7 @@ def init_conversation(ws_id: str, thread_id: str):
             prompt, config,
             allowed_tools=ALLOWED_TOOLS,
             operation="init_%s_%s" % (ws_id, thread_id),
+            model=get_model(config, "fast"),
         )
     except Exception as e:
         log("API init ERROR: %s" % e, "ERROR")
