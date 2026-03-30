@@ -9,3 +9,10 @@ SETUP_CONVERSATION.md
 
 # Conductor local context
 .context/
+
+# Dashboard
+profile.json
+conversations/
+dashboard/node_modules/
+dashboard/dist/
+__pycache__/
