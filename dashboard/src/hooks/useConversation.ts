@@ -206,7 +206,7 @@ export function useConversation(activeWsId: string | null): UseConversationRetur
                 if (idx >= 0) {
                   accumulatedToolCalls[idx] = {
                     ...accumulatedToolCalls[idx],
-                    status: "executed",
+                    status: data.is_error ? "error" : "executed",
                     result: data.content,
                   }
                   setMessages((prev) =>

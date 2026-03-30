@@ -250,9 +250,18 @@ def run_claude_streaming(prompt, config, allowed_tools=None, operation="claude_s
                         tool_calls.append(tool_call)
                         yield {"event": "tool_use", "data": tool_call}
                     elif block.get("type") == "tool_result":
+                        content = str(block.get("content", ""))
+                        is_error = block.get("is_error", False)
+                        tool_use_id = block.get("tool_use_id", "")
+                        # Update the matching tool call status
+                        for tc in tool_calls:
+                            if tc["id"] == tool_use_id:
+                                tc["status"] = "error" if is_error else "executed"
+                                tc["result"] = content
                         yield {"event": "tool_result", "data": {
-                            "tool_use_id": block.get("tool_use_id", ""),
-                            "content": str(block.get("content", "")),
+                            "tool_use_id": tool_use_id,
+                            "content": content,
+                            "is_error": is_error,
                         }}
 
             elif event_type == "result":
@@ -541,6 +550,8 @@ def chat_stream(req: ChatRequest):
         "You have access to tools (Slack, Gmail, Calendar, file operations, etc.) and they are PRE-APPROVED.\n"
         "When the user asks you to do something, JUST DO IT — do NOT ask for permission or confirmation.\n"
         "Use tools directly, then briefly report what you did and the result.\n"
+        "If a tool returns an error, tell the user what went wrong (e.g. 'Gmail returned an auth error — you may need to re-authenticate'). "
+        "NEVER ask the user to 'approve' or 'grant permission' — tools are already approved. Errors mean a config/auth issue, not a permission issue.\n"
         "Example: User says 'message someone on Slack about a deadline' → search for channel, send the message, report 'Done — sent a reminder in the channel.'\n\n"
         "## Current Workspace Context\n%s\n\n"
         "## Conversation History\n%s\n\n"

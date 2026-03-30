@@ -344,14 +344,15 @@ export function ChatMessage({ message, onApproveTool, onDenyTool }: ChatMessageP
   const isUser = message.role === "user"
   const [toolsExpanded, setToolsExpanded] = useState(false)
 
-  // Separate tool calls: anything needing approval gets a full card,
-  // regardless of read/write classification. Only collapse tools that
-  // are already executed/approved/denied.
-  const needsApproval = (tc: ToolCall) =>
-    tc.status === "proposed" || tc.status === "needs_approval"
-  const pendingTools = message.toolCalls?.filter((tc) => needsApproval(tc)) || []
-  const completedReadOnly = message.toolCalls?.filter((tc) => !needsApproval(tc) && !isActionTool(tc.name)) || []
-  const completedActions = message.toolCalls?.filter((tc) => !needsApproval(tc) && isActionTool(tc.name)) || []
+  // Separate tool calls:
+  // - Needs attention (approval or error): full card with buttons or error display
+  // - Completed read-only: collapsed summary
+  // - Completed actions: full card showing result
+  const needsAttention = (tc: ToolCall) =>
+    tc.status === "proposed" || tc.status === "needs_approval" || tc.status === "error"
+  const attentionTools = message.toolCalls?.filter((tc) => needsAttention(tc)) || []
+  const completedReadOnly = message.toolCalls?.filter((tc) => !needsAttention(tc) && !isActionTool(tc.name)) || []
+  const completedActions = message.toolCalls?.filter((tc) => !needsAttention(tc) && isActionTool(tc.name)) || []
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
@@ -373,8 +374,8 @@ export function ChatMessage({ message, onApproveTool, onDenyTool }: ChatMessageP
           )
         )}
 
-        {/* Tools needing approval: always show full card with buttons */}
-        {pendingTools.map((tc) => (
+        {/* Tools needing attention: approval prompts or errors */}
+        {attentionTools.map((tc) => (
           <ActionToolCard
             key={tc.id}
             toolCall={tc}
