@@ -396,6 +396,19 @@ async def slack_loop(config: dict) -> None:
             log(f"Slack loop error: {e}")
 
 
+async def _apply_deferred_update(config: dict) -> None:
+    """If an update was deferred because a pulse was running, apply it now."""
+    if not UPDATE_PENDING_PATH.exists():
+        return
+    log("Deferred update detected — applying now that pulse is done")
+    status = apply_update(config)
+    if status == "ok":
+        _send_slack_message(config, "Deferred update applied! Restarting now.")
+        _signal_restart()
+    else:
+        log(f"Deferred update failed: {status}")
+
+
 async def run_reactive_pulse(config: dict, user_message: str) -> None:
     if not acquire_lock():
         log("Reactive pulse skipped — another pulse is running")
@@ -415,6 +428,7 @@ async def run_reactive_pulse(config: dict, user_message: str) -> None:
         log(f"Reactive pulse error: {e}")
     finally:
         release_lock()
+    await _apply_deferred_update(config)
 
 
 def refresh_mcp_inventory() -> None:
@@ -784,6 +798,7 @@ async def run_full_pulse(config: dict) -> None:
         log(f"Full pulse error: {e}")
     finally:
         release_lock()
+    await _apply_deferred_update(config)
 
 
 async def timer_loop(config: dict) -> None:
