@@ -121,9 +121,24 @@ def now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+LOG_MAX_BYTES = 200_000  # ~200 KB
+LOG_KEEP_LINES = 500    # lines to retain after rotation
+
+
+def _rotate_log() -> None:
+    """If pulse.log exceeds LOG_MAX_BYTES, trim it to the last LOG_KEEP_LINES lines."""
+    try:
+        if not LOG_PATH.exists() or LOG_PATH.stat().st_size <= LOG_MAX_BYTES:
+            return
+        lines = LOG_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
+        kept = lines[-LOG_KEEP_LINES:]
+        LOG_PATH.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    except Exception:
+        pass
+
+
 def log(msg: str) -> None:
     line = f"[{now_str()}] {msg}"
-    print(line, flush=True)
     try:
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(LOG_PATH, "a", encoding="utf-8") as f:
@@ -201,6 +216,29 @@ def _short_json(value: object, limit: int = 240) -> str:
     return _short_text(text, limit=limit)
 
 
+def _ts_to_float(ts: object) -> float:
+    """Convert a Slack ts value to a float for ordering.
+
+    Handles Unix timestamp strings ('1234567890.123456'), ISO 8601 with UTC offset
+    ('2026-06-02T11:00:21+02:00'), and space-separated datetime with timezone name
+    ('2026-06-02 11:00:21 CEST').
+    """
+    s = str(ts or "0").strip()
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    try:
+        return datetime.fromisoformat(s).timestamp()
+    except ValueError:
+        pass
+    # Strip trailing timezone name (e.g. 'CEST') and retry
+    try:
+        return datetime.fromisoformat(s.rsplit(" ", 1)[0]).timestamp()
+    except ValueError:
+        return 0.0
+
+
 def run_claude(
     prompt: str,
     config: dict,
@@ -234,7 +272,9 @@ def run_claude(
     except subprocess.TimeoutExpired as e:
         raise RuntimeError(f"claude timed out after {timeout_seconds}s") from e
     if result.returncode != 0:
-        error_tail = _short_text(result.stderr or result.stdout, limit=400)
+        # Prefer stderr; fall back to the tail of stdout (init JSON fills the head, errors come last)
+        raw = result.stderr.strip() if result.stderr.strip() else result.stdout.strip()
+        error_tail = _short_text(raw[-400:] if len(raw) > 400 else raw, limit=400)
         raise RuntimeError(f"claude exited {result.returncode}: {error_tail}")
 
     result_text = ""
@@ -357,18 +397,18 @@ async def slack_loop(config: dict) -> None:
             if not messages:
                 continue
 
-            newest = max(messages, key=lambda m: float(m.get("ts", 0)))
+            newest = max(messages, key=lambda m: _ts_to_float(m.get("ts", 0)))
             newest_ts = newest.get("ts", "")
 
             if last_ts is None:
                 last_ts = newest_ts
                 continue
 
-            new_messages = [m for m in messages if float(m.get("ts", 0)) > float(last_ts)]
+            new_messages = [m for m in messages if _ts_to_float(m.get("ts", 0)) > _ts_to_float(last_ts)]
             if not new_messages:
                 continue
 
-            for msg in sorted(new_messages, key=lambda m: float(m.get("ts", 0))):
+            for msg in sorted(new_messages, key=lambda m: _ts_to_float(m.get("ts", 0))):
                 msg_user = str(msg.get("user", "")).strip()
                 if user_id and msg_user != user_id:
                     # Avoid triggering reactive pulses on bot/app messages.
@@ -415,6 +455,7 @@ async def run_reactive_pulse(config: dict, user_message: str) -> None:
         log(f"Reactive pulse error: {e}")
     finally:
         release_lock()
+    await _apply_deferred_update(config)
 
 
 def refresh_mcp_inventory() -> None:
@@ -810,6 +851,8 @@ async def heartbeat_loop() -> None:
             HEARTBEAT_PATH.write_text(datetime.now().isoformat())
         except Exception:
             pass
+
+        _rotate_log()
 
         if _token_totals:
             total_cost = sum(_token_totals.values())
