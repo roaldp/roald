@@ -338,6 +338,31 @@ set alongside project-root `CLAUDE.md`, this is consistent with it but not proof
 
 Round 1's challenge listed this as an untested assumption. It is now tested, and it holds.
 
+## 13. The repaired hooks work live, against the shipped template — CONFIRMED
+
+Re-run after round 2's fixes, because the earlier live test used a hand-written plan and a
+pointer at the old location, and both changed.
+
+Scratch project at `/tmp/fwlive` built from `framework/templates/PLAN.template.md` as
+shipped, with an unanswered intake question under "Open questions" above the Steps section,
+the pointer at the new tracked path `.docs/plans/ACTIVE`, and a contract with one phase
+passing and one failing.
+
+The parent session and a general-purpose subagent spawned through the Agent tool both
+reported:
+
+> ACTIVE PLAN: `/private/tmp/fwlive/.docs/plans/demo/PLAN.md`
+> CURRENT PHASE: `greeting`
+> NEXT UNCHECKED STEP: **1.** Write greeting.txt containing HELLO — *verified by: reading
+> the file back*
+
+Three things this confirms at once. The phase came from the first failing contract entry.
+The step came from the Steps section and **not** from the intake question above it, which
+was round 2's defect 4. And the new pointer location resolves.
+
+The subagent attributed it correctly too: "From the SubagentStart hook in the system
+reminders".
+
 ## Still to verify
 
 Everything else on the original list has been resolved above.
