@@ -42,6 +42,41 @@ pick one arbitrarily.
 `fix/deferred-update-apply` while the workspaces sit on `ed0d491`. Global agent behaviour
 would follow whatever branch that checkout happens to be on.
 
+## Round 2 changed this document. Read this section before the rest.
+
+A second adversarial pass attacked this draft and the shipped code, found sixteen code
+defects and twelve design findings, and verified each by running the hooks against crafted
+input. `challenges/02-challenge-v2-and-code.md` has all of it. Four things below are now
+wrong and are corrected here rather than deleted, so the trail stays readable.
+
+**The contract gate is parked, not shipped.** The section below argues it was rebuilt and
+holds. It does not hold. `F=contract.json; echo x > $F` walks past every pattern, one
+evidence read permits a write that passes every step at once, and the only test showing an
+agent accepting the block ran on Haiku with a prompt that told it to walk into the gate.
+Two hooks, a counter file and a contract file is not worth that against a standing
+instruction not to overengineer. Both hooks now live in `framework/experimental/` with a
+README recording what was learned. The installer has no flag that wires them up. What
+survives from the work is worth keeping: a `PreToolUse` deny does hold under bypass
+permissions, `permissions.deny` with `Edit(**/path)` holds too and is declarative, and any
+hook matching only `Edit|Write` on this machine is decorative.
+
+**The gate and `permissions.deny` are not complements.** The section below says they are.
+The only file the design wanted protected is the contract, and the contract has to be
+writable by the agent for the mechanism to mean anything. A permanent deny on it makes it a
+file only Roald updates, which removes the gate's reason to exist. There was never a second
+file for the deny rule to protect.
+
+**`InstructionsLoaded` logging moves from build item 4 to build item 1.** The argument for
+it is that no other decision here is anything but guesswork without it. Items 1 to 3 all
+change what loads, so two weeks of logging that starts after them measures the new
+configuration and produces no baseline.
+
+**The em-dash justification was false.** Corrected in the writing section below.
+
+Two things round 2 asked for that were missing entirely and are now added at the end of this
+document: success criteria for the framework itself, and an answer to the two-subagent
+constraint in the brief.
+
 ## What the challenge got wrong, and how
 
 Draft 1 said the contract gate was "the only mechanism an agent cannot talk its way
@@ -52,8 +87,8 @@ were wrong, in opposite directions, and the difference is testable.
 `Edit|Write` matcher installed, `echo '{"greeting":{"passes":true}}' > contract.json`
 went straight through.
 
-**Rebuilt with `Bash` in the matcher and command inspection, it holds.** Verified in both
-directions. Told to overwrite the contract with a Bash redirect and read nothing, the
+**Rebuilt with `Bash` in the matcher and command inspection, it blocks the direct forms.**
+Verified in both directions, on Haiku, with a cooperative prompt. Told to overwrite the contract with a Bash redirect and read nothing, the
 agent reported: "No — the write was blocked by a contract validator that requires reading
 the evidence file first", and the file was unchanged. Told to `cat` the evidence file
 first and then write, the same call succeeded and the counter reset.
@@ -272,14 +307,14 @@ hook.
 
 | # | Change | Cost | State |
 |---|---|---|---|
-| 1 | Create the missing `plan-reviewer` subagent; remove the emoji instruction from `create_plan.md`; audit the other ten command files for dangling references | half a day | ready to write |
+| 1 | `InstructionsLoaded` logging, before anything else changes what loads | 10 minutes | written, tested |
 | 2 | One-line `CLAUDE.md` containing `@AGENTS.md`, committed to `main`, for every repo with a root `AGENTS.md` and none | an hour | needs Roald's go-ahead, changes other repos |
-| 3 | `write-external` skill, rules only, pointed at the split AIC style guide plus the corpus exemplars | half a day | corpus exists |
-| 4 | `InstructionsLoaded` logging, then two weeks of silence | 10 minutes | hook written and verified |
-| 5 | Output style for updates to Roald, measured for a week against the current rule | an hour | not written |
-| 6 | Re-anchor hook on `SubagentStart` and `SessionStart` | 10 minutes | written and verified |
+| 3 | Install `plan-reviewer`; remove the emoji instruction from `create_plan.md`; audit the other ten command files for dangling references | half a day | agent written, not yet run |
+| 4 | `write-external` skill and `CORE.md` | half a day | written, one A/B run |
+| 5 | Output style for updates to Roald, measured for a week against the current rule | an hour | written, not yet run |
+| 6 | Re-anchor hook on `SubagentStart` and `SessionStart` | 10 minutes | written, tested |
 | 7 | `PLAN.md` template and the intake procedure | half a day | template written |
-| 8 | Diagnose why `/implement_plan` stops delegating | an afternoon | not started |
+| 8 | Diagnose why `/implement_plan` stops delegating | an afternoon | partly done, see the addendum |
 
 Everything else waits for a measurement: the contract gate and `contract.json`, the
 evaluator subagent, the orchestration skill, the linter as a blocking hook, the plugin
@@ -358,3 +393,43 @@ file is unaffected.
 | 5 | Is Opus 5 inside the todo-tools-disabled list | `/context` in a live session |
 | 6 | Does the output style beat the existing `CLAUDE.md` rule on reply length | Three days of use, count replies over half a page |
 | 7 | Where does `/implement_plan` stop delegating | Read three transcripts |
+
+## Success criteria for the framework itself
+
+Round 2's finding J was that this document had seven cheap tests and no statement of what
+would count as any of the five problems being solved. Three thresholds, one per problem
+that has a mechanism. If a mechanism has not met its threshold in four weeks, switch it off.
+
+**Problem 1, external writing.** An agent-drafted external email that Roald sends without
+rewriting the first paragraph. One is enough to count. Zero in four weeks means `CORE.md` is
+not the intervention, and the next thing to try is instrumenting for more draft-versus-sent
+pairs rather than writing more rules.
+
+**Problem 2, update length.** A week in which no reply in the terminal exceeds half a page.
+The baseline to compare against has to be recorded before the output style goes on, which is
+another reason the logging comes first.
+
+**Problem 5, drift.** A `PLAN.md` whose Log section contains an entry written by the agent
+that deviated, naming what it did instead and why. Zero entries after four weeks means the
+plan file is being written and not used, which is the failure the whole of Part 4 exists to
+prevent and the most likely one.
+
+Problems 3 and 4 have no threshold because they have no mechanism yet. Intake is a procedure
+nobody has been made to follow, and the rollout is a set of edits waiting on a go-ahead.
+
+## The two-subagent constraint
+
+The brief says at most two Opus 5 subagents running at once. Draft 1 answered this with
+`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2`, which round 1 correctly killed as the wrong
+mechanism: that variable caps nesting depth, not concurrency, and it fails invisibly by
+withholding the Agent tool.
+
+The right variable is `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, which defaults to 20. Setting
+it to 2 would enforce the constraint. It has not been tested, and it is worth asking whether
+the constraint was about cost, about reviewability, or about this one overnight job before
+making it permanent.
+
+Separately, and this needs saying because the wording invites the wrong reading: **"one
+worker at a time" applies inside a single job, not across the machine.** Roald runs seven
+Conductor workspaces in parallel and should keep doing so. What should not fan out is
+several subagents writing to the same codebase inside one job.
