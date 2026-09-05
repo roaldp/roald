@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Install the agent operating framework from this repo into ~/.claude.
 
 Responsibilities:
@@ -20,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -41,21 +43,17 @@ BACKUP_SUFFIX = ".pre-framework"
 # a marker so uninstall can find and remove exactly these and nothing else.
 MARKER = "agent-operating-framework"
 
-# The default set. These observe or re-anchor. None of them blocks a tool call.
+# The whole set. Every one of these observes or re-anchors. None blocks a tool call, and
+# nothing this installer wires up can deny anything.
 HOOK_PLAN = {
     "InstructionsLoaded": [(None, "instructions_log.py")],
     "SessionStart": [("startup|resume|compact", "reanchor.py")],
     "SubagentStart": [(None, "reanchor.py")],
 }
 
-# Opt-in with --with-gate. The contract gate blocks writes, so it is off by default until
-# it has been used on a real job. Bash is in both matchers because under bypass
-# permissions most file access on this machine goes through Bash: measured 6,429 Bash
-# calls against 1,640 Edit and Write across 52 recent large sessions.
-GATE_PLAN = {
-    "PreToolUse": [("Write|Edit|Bash", "contract_gate.py")],
-    "PostToolUse": [("Read|Bash", "evidence_tracker.py")],
-}
+# There is deliberately no second plan here. The contract gate and its evidence counter
+# are parked in framework/experimental/ and this installer has no flag that wires them up.
+# See that directory's README for why, and for what was learned building them.
 
 
 # ============================================================================
@@ -95,8 +93,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="Actually make the changes.")
     parser.add_argument("--uninstall", action="store_true", help="Remove what this script installed.")
-    parser.add_argument("--with-gate", action="store_true",
-                        help="Also install the contract write-gate, which blocks tool calls.")
+    parser.add_argument("--allow-unstable-source", action="store_true",
+                        help="Install from a Conductor checkout anyway. Not recommended.")
     parser.add_argument("--report-repos", action="store_true",
                         help="List repos on this machine that need a per-repo change, and stop.")
     args = parser.parse_args()
@@ -105,21 +103,46 @@ def main() -> None:
         report_repos()
         return
 
+    refuse_unstable_source(allow=args.allow_unstable_source)
+
     links = planned_links()
-    plan = dict(HOOK_PLAN)
-    if args.with_gate:
-        plan.update(GATE_PLAN)
 
     if args.uninstall:
         uninstall(links, apply=args.apply)
         return
 
-    install(links, plan, apply=args.apply)
+    install(links, HOOK_PLAN, apply=args.apply)
 
 
 # ============================================================================
 # INSTALL
 # ============================================================================
+
+
+def refuse_unstable_source(allow: bool) -> None:
+    """Stop if the framework would be symlinked out of a Conductor checkout.
+
+    A Conductor workspace follows whatever branch it is on and can be archived. Symlinking
+    ~/.claude into one ties every agent on the machine to that branch, and every hook on
+    the machine starts failing with a missing-file error if the workspace goes away.
+
+    Args:
+        allow: Set by --allow-unstable-source to override.
+
+    Raises:
+        SystemExit: When the source is a Conductor checkout and the override is not set.
+    """
+    conductor = Path.home() / "conductor"
+    if conductor not in REPO_ROOT.parents or allow:
+        return
+
+    raise SystemExit(
+        f"Refusing to install from {REPO_ROOT}.\n"
+        "This is a Conductor checkout. It follows whatever branch it is on and can be\n"
+        "archived, and every hook on the machine would break with it. Clone the repo to\n"
+        "~/.claude/framework-src, check out main, and run this script from there.\n"
+        "Override with --allow-unstable-source if you know why you want that."
+    )
 
 
 def install(links: list[Link], plan: dict, apply: bool) -> None:
@@ -150,7 +173,7 @@ def install(links: list[Link], plan: dict, apply: bool) -> None:
     if apply and changes:
         back_up_settings()
         SETTINGS.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
-        print(f"  written, previous version at {SETTINGS.with_suffix('.json' + BACKUP_SUFFIX)}")
+        print(f"  written, previous version backed up next to it as *{BACKUP_SUFFIX}.*")
 
     if not apply:
         print("\nNothing was changed. Re-run with --apply.")
@@ -302,17 +325,30 @@ def report_repos() -> None:
 
 
 def load_settings() -> dict:
-    """Read ~/.claude/settings.json, returning an empty dict when it does not exist."""
+    """Read ~/.claude/settings.json, returning an empty dict when it does not exist.
+
+    Raises:
+        SystemExit: When the file exists but is not valid JSON. Merging into a file we
+            cannot parse would destroy it, so stop and say which file to fix.
+    """
     if not SETTINGS.is_file():
         return {}
-    return json.loads(SETTINGS.read_text(encoding="utf-8"))
+    try:
+        return json.loads(SETTINGS.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise SystemExit(f"Cannot parse {SETTINGS}: {error}. Fix it, then re-run.")
 
 
 def back_up_settings() -> None:
-    """Copy settings.json aside before the first write of a run."""
-    backup = SETTINGS.with_suffix(".json" + BACKUP_SUFFIX)
-    if SETTINGS.is_file() and not backup.exists():
-        shutil.copy2(SETTINGS, backup)
+    """Copy settings.json aside before writing it.
+
+    One backup per run, stamped, rather than one backup ever. A single fixed-name backup
+    is only useful for the first run; every run after that has nothing to roll back to.
+    """
+    if not SETTINGS.is_file():
+        return
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    shutil.copy2(SETTINGS, SETTINGS.with_suffix(f".json{BACKUP_SUFFIX}.{stamp}"))
 
 
 if __name__ == "__main__":

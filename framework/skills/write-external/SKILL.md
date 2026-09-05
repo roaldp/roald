@@ -10,17 +10,22 @@ writing is the problem this skill exists to solve.
 
 ## 1. Load the style before writing a sentence
 
-Read `~/.claude/framework-style/CORE.md` in full. It is under 200 lines and it governs
-every sentence you are about to write.
+Read `~/.claude/framework-style/CORE.md` in full. It is about two hundred lines and it
+governs every sentence you are about to write.
 
 `CORE.md` carries its own before-and-after pairs in section 1: agent draft on the left,
 what Roald actually sent on the right. Those pairs are the mechanism and the rules are the
 backstop, so read section 1 slowly rather than skimming to the rule list.
 
-Do not go and read the full writing corpus as well. That was measured on 2026-09-06:
-loading `CORE.md` alone produced almost the same draft as loading `CORE.md` plus the
-1,176-line corpus, and the corpus costs a lot of context for one deleted phrase. The corpus
-is the source document for maintaining `CORE.md`, not something to load while drafting.
+For a short message, `CORE.md` is enough. One measurement on 2026-09-06 — a single email,
+one model, so treat it as an indication and not a result — found that loading `CORE.md`
+alone produced nearly the same draft as loading it plus the full 1,176-line corpus.
+
+For anything long, high-stakes, or in a register `CORE.md` warns is thin — long English
+prose, cold outbound email — read section A of the corpus as well, at
+`.docs/plans/2026.09.06-agent-operating-framework/research/05-roald-writing-corpus.md` in
+the `roald` repo. Those are the labelled pairs, and they are the only direct evidence for
+the registers the rules are extrapolating into.
 
 If the project you are in has its own overlay for this medium, read that too and let it
 win on anything it covers:

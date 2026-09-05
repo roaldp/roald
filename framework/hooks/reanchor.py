@@ -2,33 +2,52 @@
 """Re-inject the active plan pointer into a session or subagent that has lost it.
 
 Responsibilities:
-- Read the active-plan pointer for the current project.
-- Emit the plan path, current phase and next unchecked step as additionalContext.
+- Find the active plan for the current project.
+- Emit its path, the current phase and the next unticked step as additionalContext.
 - Stay silent when there is no active plan, so ordinary sessions cost nothing.
 
-Registered on SessionStart (matcher compact|resume) and SubagentStart. Both were verified
-to deliver additionalContext on 2026-09-06; see
-.docs/plans/2026.09.06-agent-operating-framework/04-verification-results.md.
+Registered on SessionStart with matcher "startup|resume|compact", and on SubagentStart.
+All three SessionStart sources and the SubagentStart delivery were observed directly on
+2026-09-06; see 04-verification-results.md findings 2, 3, 6 and 12.
 
-The pointer file is deliberately a path and not the plan itself. The plan is on disk and
-the agent can read it; injecting the whole thing would waste context on every subagent.
+Startup is in the matcher deliberately. The anchor costs nothing in a directory with no
+active plan, because this hook prints nothing there, and a session that starts inside a
+planned job wants the pointer as much as one that resumes.
+
+SubagentStart is the one that earns this hook. A subagent inherits no conversation
+history, no files the parent read, no invoked skills and no auto memory, so without this
+a delegated worker does not know a plan exists.
+
+The hook emits a pointer, not the plan. The plan is on disk and the agent can read it;
+injecting the whole thing would spend context on every subagent for no gain.
 """
 
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import plan_state  # noqa: E402  (path set above so the hook runs from any directory)
 
 # ============================================================================
 # CONSTANTS
 # ============================================================================
 
-POINTER_NAME = ".context/active-plan"
-CONTRACT_NAME = "contract.json"
-MAX_CONTEXT_CHARS = 9000  # the hook limit is 10,000; leave headroom
-UNCHECKED_STEP = re.compile(r"^\s*[-*]\s*\[ \]\s*(.+)$", re.MULTILINE)
+MAX_CONTEXT_CHARS = 9000  # the documented cap is 10,000; leave headroom
+
+SUBAGENT_NOTE = (
+    "You are a subagent. You inherit none of the parent's context. Read the plan file "
+    "before doing anything, do only the step you were given, and write your output to "
+    "the path named in your brief."
+)
+
+SESSION_NOTE = (
+    "Work to this plan. If you are about to do something the plan does not cover, say so "
+    "and record it in the plan's Log section before doing it."
+)
 
 
 # ============================================================================
@@ -38,15 +57,21 @@ UNCHECKED_STEP = re.compile(r"^\s*[-*]\s*\[ \]\s*(.+)$", re.MULTILINE)
 
 def main() -> None:
     """Read the hook payload on stdin and print additionalContext, or nothing."""
-    payload = read_payload()
-    project_dir = Path(payload.get("cwd") or ".")
+    payload = plan_state.read_payload(sys.stdin)
+    project = plan_state.project_dir(payload)
 
-    plan_path = resolve_active_plan(project_dir)
+    plan_path = plan_state.active_plan(project)
     if plan_path is None:
         return
 
     anchor = build_anchor(plan_path, payload)
-    emit(payload.get("hook_event_name", "SessionStart"), anchor)
+    event = payload.get("hook_event_name") or "SessionStart"
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": event,
+            "additionalContext": anchor,
+        }
+    }))
 
 
 # ============================================================================
@@ -54,109 +79,30 @@ def main() -> None:
 # ============================================================================
 
 
-def read_payload() -> dict:
-    """Parse the hook JSON from stdin, tolerating an empty or malformed body."""
-    raw = sys.stdin.read()
-    if not raw.strip():
-        return {}
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-
-
-def resolve_active_plan(project_dir: Path) -> Path | None:
-    """Find the plan this project is currently working to.
-
-    Args:
-        project_dir: The session's working directory.
-
-    Returns:
-        Path to PLAN.md, or None when no active plan is set or the pointer is stale.
-    """
-    pointer = project_dir / POINTER_NAME
-    if not pointer.is_file():
-        return None
-
-    target = pointer.read_text(encoding="utf-8").strip()
-    if not target:
-        return None
-
-    plan_path = Path(target)
-    if not plan_path.is_absolute():
-        plan_path = project_dir / plan_path
-    return plan_path if plan_path.is_file() else None
-
-
 def build_anchor(plan_path: Path, payload: dict) -> str:
     """Assemble the short re-anchor message.
 
     Args:
-        plan_path: The active PLAN.md.
-        payload: The hook input, used to tailor wording for subagents.
+        plan_path: The active plan file.
+        payload: The hook input, used to tell a subagent from a session.
 
     Returns:
-        The text to inject, under the additionalContext character cap.
+        The text to inject, truncated to the additionalContext cap.
     """
-    is_subagent = payload.get("hook_event_name") == "SubagentStart"
     lines = [f"ACTIVE PLAN: {plan_path}"]
 
-    phase = read_current_phase(plan_path.parent / CONTRACT_NAME)
+    phase = plan_state.current_phase(plan_path.parent)
     if phase is not None:
         lines.append(f"CURRENT PHASE: {phase}")
 
-    step = read_next_step(plan_path)
+    step = plan_state.next_step(plan_path)
     if step is not None:
         lines.append(f"NEXT UNCHECKED STEP: {step}")
 
-    if is_subagent:
-        lines.append(
-            "You are a subagent. You inherit none of the parent's context. "
-            "Read the plan file before doing anything, do only the step you were given, "
-            "and write your output to the path named in your brief."
-        )
-    else:
-        lines.append(
-            "Work to this plan. If you are about to do something the plan does not "
-            "cover, say so and record it in the plan's Log section before doing it."
-        )
+    is_subagent = payload.get("hook_event_name") == "SubagentStart"
+    lines.append(SUBAGENT_NOTE if is_subagent else SESSION_NOTE)
 
     return "\n".join(lines)[:MAX_CONTEXT_CHARS]
-
-
-def read_current_phase(contract_path: Path) -> str | None:
-    """Return the first phase in the contract that is not yet passing."""
-    if not contract_path.is_file():
-        return None
-    try:
-        contract = json.loads(contract_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
-
-    for name, state in contract.items():
-        if isinstance(state, dict) and not state.get("passes"):
-            return name
-    return "all phases passing"
-
-
-def read_next_step(plan_path: Path) -> str | None:
-    """Return the first unchecked checklist item in the plan."""
-    try:
-        text = plan_path.read_text(encoding="utf-8")
-    except OSError:
-        return None
-    match = UNCHECKED_STEP.search(text)
-    return match.group(1).strip() if match else None
-
-
-def emit(event_name: str, context: str) -> None:
-    """Print the hook's JSON response."""
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": event_name,
-            "additionalContext": context,
-        }
-    }))
 
 
 if __name__ == "__main__":

@@ -54,6 +54,11 @@ written.>
 
 **Out:** <everything deliberately not being done, named>
 
+**What the deliverable looks like:** <the concrete output requirements. A file at a path, a
+message of a given shape, a script with a given interface. Success criteria say how it must
+behave; this says what it must be. Roald named this stage explicitly and it has no other
+home.>
+
 <The "out" list is the section that does the work. Roald asked for the minimum format that
 meets the intended goal, prioritising scope success, speed, and simplicity for reviewers
 and users.>
@@ -61,7 +66,7 @@ and users.>
 ## Steps
 
 <Each step names its verification. A step whose verification is "it looks right" is not
-finished being written either. These map one to one onto the entries in contract.json.>
+finished being written either.>
 
 - [ ] **1.** <step> — *verified by: <what will be read to prove it>*
 - [ ] **2.** <step> — *verified by: <…>*

@@ -12,3 +12,6 @@ SETUP_CONVERSATION.md
 
 # Agent memory
 memory/
+
+# Agent framework: per-agent evidence counters, local state only
+.evidence-reads*

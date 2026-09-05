@@ -235,7 +235,7 @@ def describe_surfaces(root: Path) -> dict[str, object]:
 
 def describe_global_surfaces() -> dict[str, object]:
     """Describe the user-global surfaces under ~/.claude."""
-    return describe_surfaces(Path.home()) | describe_surfaces(CLAUDE_HOME.parent) | {
+    return describe_surfaces(Path.home()) | {
         "~/.claude/CLAUDE.md": (CLAUDE_HOME / "CLAUDE.md").stat().st_size
         if (CLAUDE_HOME / "CLAUDE.md").is_file()
         else None,
