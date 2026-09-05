@@ -302,6 +302,51 @@ the built-in `Explore` and `Plan` agents skip the `CLAUDE.md` hierarchy, and out
 do not reach subagents at all. Claude Desktop's cloud-side Projects cannot be written from
 this machine.
 
+## Addendum, measured after draft 2 was written
+
+Three measurements landed after this draft and two of them change it. Full detail in
+`04-verification-results.md`, findings 10 and 11.
+
+**The custom commands are not used, so nothing opt-in will be.** Across 2,577 transcripts,
+`/create_plan` was invoked zero times and `/implement_plan` once. Checking by body text
+rather than by name — the name appears in 887 transcripts because every session loads the
+command listing — `create_plan` has been loaded into two sessions ever and
+`implement_plan` into three.
+
+This settles the surface question. A skill differs from a command in exactly the way that
+matters: **a skill can be invoked by the model when its description matches the task, a
+command has to be typed.** So `write-external` is a skill, and its `description` field is
+the most load-bearing text in the framework.
+
+It also argues against build-order item 7 as written. An intake skill Roald has to
+remember to invoke will go the way of `/create_plan`. If the plan workflow is to happen,
+it has to trigger on the shape of the request. That is a harder design problem than draft
+2 assumed and it is not solved here.
+
+It softens build-order item 1 too. Fixing the missing `plan-reviewer` is still right,
+because a dangling reference in a loaded instruction file is a defect, but it is not the
+high-frequency failure round 1 took it for.
+
+**The style guide moves the output, and the corpus on top of it does not move it much
+further.** Three drafts of the same email, same model, differing only in what was loaded.
+With nothing loaded: "Good to meet you at the conference last week", an em dash in the
+subject line, and "Would you have time for a call in the next week or two?" With `CORE.md`
+loaded: "Was good meeting you at the conference last week", no em dash, and "Worth to do a
+call this week?" Three measured habits from his corpus, reproduced without being named in
+the task.
+
+Loading the full 1,176-line corpus on top of `CORE.md` removed one phrase of
+throat-clearing and changed nothing else. So the skill points at `CORE.md` and stops. The
+corpus is the source document for maintaining `CORE.md`, not something to load while
+drafting. The skill has been updated accordingly.
+
+What this does not prove is that Roald prefers the result. That needs him to rank the
+three drafts, which are at `/tmp/styletest/`, and it is the acceptance test that matters.
+
+**Opus 5 has the in-session todo tools disabled by default.** Confirmed from the binary:
+the list is "Opus 4.8, Sonnet 5, Fable 5, Mythos 5, and newer models". The on-disk plan
+file is unaffected.
+
 ## Still to verify
 
 | # | Question | Cheapest test |

@@ -182,6 +182,125 @@ afterwards, as designed.
 invisible on inspection and would have made the framework's only unbypassable mechanism a
 no-op.
 
+## 9. Opus 5 has the in-session todo tools disabled by default — CONFIRMED
+
+The changelog text inside the binary reads: "…le on Opus 4.8, Sonnet 5, Fable 5, Mythos 5,
+and newer models; set `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` to bring them back". Opus 5 is
+newer than Opus 4.8, so it is covered.
+
+The on-disk plan file is a different thing and is unaffected. Anthropic's position is only
+that an in-session checklist is redundant on current models.
+
+## 10. The style guide changes the output — MEASURED, with a caveat about what it proves
+
+Three drafts of the same email, same facts, same model (`opus`), same prompt, differing
+only in what was loaded first.
+
+**A, nothing loaded.**
+
+> Subject: Powered space in Europe — following up from last week
+>
+> Hi Alexander,
+>
+> Good to meet you at the conference last week.
+>
+> Quick background on us: we buy GPU servers and rent them out on long contracts…
+>
+> Would you have time for a call in the next week or two?
+
+**B, `CORE.md` plus the full corpus, sections A and C1 to C15.**
+
+> Subject: Powered space in Europe
+>
+> Hi Alexander,
+>
+> Was good meeting you at the conference last week. Quick note on what we're after.
+>
+> …
+>
+> Worth to do a call this week? I'm also in Reykjavik on 20 to 22 September if a visit
+> suits better.
+
+**C, `CORE.md` only, forbidden from reading anything else.**
+
+> Subject: Powered space in Europe, 0.5 to 10 MW
+>
+> Hi Alexander, was good meeting you at the conference last week.
+>
+> Quick background on us. We buy GPU servers…
+>
+> Worth to do a call this week? I'm also in Reykjavik on 20 to 22 September and could
+> come by.
+
+What moved between A and the other two: the em dash left the subject line, "Good to meet
+you" became "Was good meeting you" with the subject dropped, and "Would you have time for
+a call in the next week or two?" became "Worth to do a call this week?". Those are three
+of the specific habits measured in the corpus, reproduced without being named in the task.
+
+What did **not** move much between B and C. Reading the full 1,176-line corpus on top of
+`CORE.md` removed one piece of throat-clearing, "Quick background on us", and changed
+little else.
+
+**The honest reading, and it changes the skill.** This does not isolate rules from
+exemplars, because `CORE.md` has the before-and-after pairs embedded in section 1. What it
+shows is that a two-hundred-line guide containing its own exemplars gets most of the
+available movement, and that making the skill read the whole corpus every time costs a lot
+of context for one deleted phrase.
+
+So `write-external` should point at `CORE.md` and stop there, and the corpus stays a
+source document for maintaining `CORE.md` rather than something loaded at drafting time.
+The skill as written asks for the corpus too, and that should be softened to optional.
+
+Not proven: whether Roald prefers B or C to A. That needs him to rank them, and it is the
+acceptance test that matters. The three drafts are at `/tmp/styletest/`.
+
+## 11. The eleven custom commands are almost never used — CONFIRMED, and it changes the design
+
+Two independent counts across all 2,577 transcripts in `~/.claude/projects`.
+
+**By invocation marker.** Counting `<command-name>` markers, the only slash commands ever
+invoked on this machine are `/model` (33 sessions), `/compact` (11), `/nodewatch-review`
+(4), `/login` (2), and then one session each for `/implement_plan`, `/run-skill-generator`
+and `/cloudflare:cloudflare-one`. `/create_plan` appears zero times. So do `/check_plan`,
+`/thoroughly_test`, `/create_PR`, `/push_all_changes_to_git` and the rest.
+
+**By body text**, to guard against the marker being unreliable. Searching for a
+distinctive sentence from inside each command file, which can only be present if the file
+was actually loaded into a session:
+
+| Command | Transcripts containing its body |
+|---|---|
+| `create_plan` | 2 |
+| `implement_plan` | 3 |
+| `create_PR` | 2 |
+
+Out of 2,577. Note that a naive search for a command's *name* returns 887 hits, because
+every session loads the skill and command listing. That number means nothing and it is the
+trap here.
+
+**What this changes.** Three things.
+
+First, the broken `plan-reviewer` reference matters less than round 1's challenge implied.
+The command that calls it has been loaded three times ever. Fixing it is still right — a
+dangling reference in a loaded instruction file is a defect — but it is not a
+high-frequency failure.
+
+Second, and this is the important one: **the workflow Roald describes wanting is not the
+workflow he runs.** He asked for structured briefs turned into plans and executed
+phase-by-phase. He has the commands for it, written in his own words, and he has invoked
+them perhaps five times in 2,577 sessions. He works by typing free-form instructions.
+
+Third, it settles a design question. Anything opt-in will not be used. The surfaces that
+fire without being asked for are `CLAUDE.md`, the output style, hooks, and **skills, which
+differ from commands in exactly the way that matters here: a skill can be invoked by the
+model when its description matches the task, while a command has to be typed.** That is
+why `write-external` is a skill and not a command, and it makes the skill's `description`
+field the most load-bearing text in the whole framework.
+
+It also argues against adding an intake skill and an orchestration skill that Roald would
+have to remember to invoke. If the plan workflow is to happen at all, it has to be
+triggered by the shape of the request rather than by him typing a command.
+
 ## Still to verify
 
 | # | Question | Why it matters | Cheapest test |

@@ -13,10 +13,14 @@ writing is the problem this skill exists to solve.
 Read `~/.claude/framework-style/CORE.md` in full. It is under 200 lines and it governs
 every sentence you are about to write.
 
-Then read the labelled before-and-after pairs in section A of the writing corpus, at
-`.docs/plans/2026.09.06-agent-operating-framework/research/05-roald-writing-corpus.md` in
-the `roald` repo, if you can reach it. Those pairs are agent draft on the left and what
-Roald actually sent on the right. They are the mechanism. `CORE.md` is the backstop.
+`CORE.md` carries its own before-and-after pairs in section 1: agent draft on the left,
+what Roald actually sent on the right. Those pairs are the mechanism and the rules are the
+backstop, so read section 1 slowly rather than skimming to the rule list.
+
+Do not go and read the full writing corpus as well. That was measured on 2026-09-06:
+loading `CORE.md` alone produced almost the same draft as loading `CORE.md` plus the
+1,176-line corpus, and the corpus costs a lot of context for one deleted phrase. The corpus
+is the source document for maintaining `CORE.md`, not something to load while drafting.
 
 If the project you are in has its own overlay for this medium, read that too and let it
 win on anything it covers:
