@@ -301,12 +301,70 @@ It also argues against adding an intake skill and an orchestration skill that Ro
 have to remember to invoke. If the plan workflow is to happen at all, it has to be
 triggered by the shape of the request rather than by him typing a command.
 
+## 12. SessionStart fires with source "compact", and the global CLAUDE.md is present afterwards — CONFIRMED
+
+Verification 6 could not observe the `compact` source. This run did.
+
+A scratch project with a `SessionStart` and an `InstructionsLoaded` hook that log their
+raw payload. Build a session with some content, resume it, run `/compact`, then resume
+again and ask a question. The logged sequence:
+
+```
+SessionStart      source=startup
+InstructionsLoaded  CLAUDE.md   reason=session_start
+InstructionsLoaded  CLAUDE.md   reason=session_start
+SessionStart      source=resume
+SessionStart      source=compact      <-- the one in question
+InstructionsLoaded  CLAUDE.md   reason=session_start
+SessionStart      source=resume
+```
+
+**`SessionStart` with `source=compact` fires.** The re-anchor hook's registration
+`matcher: "startup|resume|compact"` is correct as written.
+
+**`~/.claude/CLAUDE.md` is present after compaction.** Asked without tools to quote the
+sentence beginning "Brevity that costs", the post-compaction session answered:
+
+> "Brevity that costs comprehension is not brevity."
+
+That is verbatim from the user-global file, and `InstructionsLoaded` fired again for a
+`CLAUDE.md` right after the compact event.
+
+**The honest limit on this one.** The session that answered was itself a resume, so this
+does not separate "survived compaction" from "reloaded on resume". For the practical
+question — is the global file in context after a compaction — the answer is yes either
+way. For the narrower question of whether user-scope memory is in Anthropic's re-injection
+set alongside project-root `CLAUDE.md`, this is consistent with it but not proof.
+
+Round 1's challenge listed this as an untested assumption. It is now tested, and it holds.
+
 ## Still to verify
+
+Everything else on the original list has been resolved above.
 
 | # | Question | Why it matters | Cheapest test |
 |---|---|---|---|
-| 3 | Does Claude Desktop's local agent mode read `~/.claude/CLAUDE.md` and `~/.claude/skills/` | Determines whether user-global install reaches Desktop | Run a Desktop local agent in a scratch dir and ask it what it loaded |
-| 4 | Is Opus 5 inside the "todo tools disabled by default" list, and what is its auto-compact threshold | Affects whether the on-disk plan is the only checklist | `/context` in a live Opus 5 session |
-| 5 | Is a `Stop`-hook completion gate net positive in interactive use | All evidence for it comes from unattended loops | Run it for a day with a block cap and see if it is annoying |
-| 6 | Does `.conductor/conductor.json` support anything beyond a setup script | Another propagation point if it does | Read the Conductor schema |
-| 7 | Roald's own em-dash rate and sentence-length profile | Rules should be calibrated to his corpus, not a published baseline | Measure `research/05-roald-writing-corpus.md` once it exists |
+| 1 | Does Claude Desktop's local agent mode read `~/.claude/CLAUDE.md` and `~/.claude/skills/` | Whether a user-global install reaches Desktop, which is 36 MB of work here | Run a Desktop local agent in a scratch directory and ask it what it loaded |
+| 2 | Does Roald prefer the style-guided drafts to the unguided one | This is the acceptance test for problem 1, and nothing else substitutes for it | Rank the three drafts at `/tmp/styletest/` blind |
+| 3 | Is a `Stop`-hook completion gate net positive in interactive use | All the evidence for it comes from unattended loops and it may be hostile in conversation | Run it for a day with a block cap |
+| 4 | Does the `steering` output style beat the existing `CLAUDE.md` rule on reply length | Problem 2 currently has no mechanism at all | Three days of use, count replies over half a page |
+| 5 | Is the skill listing budget a real constraint here | Determines how many skills the framework can add | `/context` in an Opus 5 session, read the skills line |
+| 6 | Does `.conductor/conductor.json` support anything beyond a setup script | Another propagation point if it does | Read the Conductor settings schema |
+| 7 | What would make Roald actually use a plan workflow | Finding 11 shows the commands he wrote are not used, and nothing in the framework fixes that | Ask him |
+
+## Caveat that applies to every result above
+
+Every headless probe here used `--model claude-haiku-4-5-20251001` for cost, while the
+machine runs Opus 5 on a 1M window. What that model choice can and cannot affect:
+
+**Not affected.** Whether a hook fires, what fields its payload carries, whether
+`additionalContext` reaches the agent, whether a `PreToolUse` deny blocks a call, whether
+`permissions.deny` holds under bypass permissions, and which instruction files load. These
+are harness behaviour and the model is downstream of them.
+
+**Possibly affected.** How an agent responds to a denial. Haiku accepted the block and
+reported it. A stronger model might work around it more inventively, and the gate is a
+speed bump rather than a boundary in any case.
+
+**Definitely affected.** The style experiment in finding 10 used `opus`, deliberately,
+because the output is the thing being judged.
