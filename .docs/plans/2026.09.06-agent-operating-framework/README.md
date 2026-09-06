@@ -31,8 +31,9 @@ doing it, starting with the logging hook alone for two weeks.**
 the writing problem and nothing substitutes for your read. If A wins, the style work is
 wrong and should stop.
 
-**4. Tell me what the two-subagent limit was for.** Cost, reviewability, or just this job?
-`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=2` would enforce it permanently.
+**4. Done.** Subagent concurrency is capped machine-wide at 5.
+`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=5` is set in `~/.claude/settings.json`, with the
+previous file backed up beside it. It takes effect in new sessions.
 
 ## Findings that change what you would do
 
@@ -79,9 +80,11 @@ Seven artefacts in `framework/` and two scripts. All tested except the three mar
 | `framework/output-styles/steering.md` | Reply format for supervising several agents. Not yet run |
 | `framework/style/CORE.md` | House style, 215 lines, calibrated to your corpus |
 | `framework/templates/PLAN.template.md` | The plan file |
+| `framework/skills/agent-system-audit/SKILL.md` | Where to look and what to check, so this audit is repeatable |
 | `framework/experimental/` | The contract gate, parked, with a README on why |
 | `scripts/install_framework.py` | Symlink installer, dry run by default, `--uninstall` |
 | `scripts/agent_inventory.py` | Maps every Claude Code surface on the machine |
+| `scripts/agent_audit.py` | Runs the seven health checks and prints findings plus measurements |
 
 ## Where the detail is
 

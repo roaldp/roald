@@ -17,9 +17,10 @@ two disagree the corpus wins, because it is what he actually sends.
 email, which are the registers his complaint is about. The nine before-and-after pairs are
 the only direct evidence, so section 1 carries more weight than the rest of this file.
 
-Line cap: 215. Adding a rule means cutting one that has stopped earning its place. The cap
-moved once, from 200, when the punctuation rules gained their evidence. It is recorded here
-so it does not move again quietly.
+Line cap: 220. Adding a rule means cutting one that has stopped earning its place. The cap
+has moved twice, from 200 when the punctuation rules gained their evidence, and from 215
+when Roald tightened the em dash and semicolon rules on 2026-09-06. Recorded so it does not
+move again quietly.
 
 ## 1. The nine pairs
 
@@ -72,10 +73,8 @@ something does end a message it is an offer or a question. "Worth to do another 
 
 **He replaces a committing word with an open one.** "Around" rather than "fixed for the
 term". He marks the specific thing he is unsure about rather than softening the whole
-message.
-
-**He breaks one long sentence into labelled lines.** A company-name-as-subject sentence
-becomes a bare header, then a capability line, then a footprint line.
+message. And he breaks one long sentence into labelled lines: a company-name-as-subject
+sentence becomes a bare header, then a capability line, then a footprint line.
 
 **He removes instructions to the reader.** Not "forward this to your colleague", not "ask
 for the signed contracts". Offer instead, and vary the offer between documents. Where
@@ -87,8 +86,8 @@ flourish. That is the one direction in which his edit makes text longer.
 Target 12 to 16 words on average. Never over 40. His measured mean is 14.6 and his median
 is 12.
 
-Vary the length on purpose. About a quarter of his sentences run under eight words and a
-fifth run over twenty. Uniform sentence length is the one structural marker every source on
+Vary the length on purpose. A quarter of his sentences run under eight words and a fifth
+over twenty. Uniform sentence length is the one structural marker every source on
 machine-written text agrees on.
 
 **Join clauses with a comma and a conjunction.** This is the most consistent surface
@@ -108,32 +107,37 @@ Define jargon inline on first use, in ordinary words.
 
 ## 4. Punctuation
 
-**No em dash inside a sentence.** Use a comma, a full stop, or a comma with "and", "so" or
-"but". Em dashes are fine in a label or an eyebrow, which is where his own use of them
-sits: "Andy Chen, VP Global Business, Taipei — the senior commercial one".
+**No em dash. Anywhere.** Not in a sentence, not in a bullet, not in a label, not in a
+heading. The character is `—` and it is the long one. The short `-` is a hyphen and is fine
+in a compound word. The medium `–` is an en dash and is fine inside a numeric range in a
+table.
 
-The evidence for the ban is his own writing, not a study. Across his typed prompts the rate
-is between 0.65 and 1.01 per thousand words depending on how strictly pasted agent output
-is filtered out, against a published human baseline of 3.23. In his Slack messages, his
-emails and his commits the corpus finds none at all: "em dashes appear only in agent-written
-text and in his own list labels."
+Where a draft reaches for an em dash, use one of these instead. A comma, when the second
+part continues the thought. A full stop, when it does not. A colon, when the second part
+explains or lists. A comma with "and", "so" or "but", when the two clauses are equal. In a
+bullet label, a colon: `Andy Chen, VP Global Business, Taipei: the senior commercial one`.
+
+The evidence is Roald's own writing, not a study. Across his typed prompts the rate is
+between 0.65 and 1.01 per thousand words, against a published human baseline of 3.23. In
+his Slack messages, his emails and his commits the corpus finds none at all: "em dashes
+appear only in agent-written text". He has said directly that he does not want them.
 
 One thing that looks like a contradiction. `~/.claude/CLAUDE.md` runs at 13.6 per thousand
 and Roald owns it, but it is a document written with an agent rather than something he typed
 and sent, and that rate is the marker showing through. **The acceptance test for this guide
 is what he sends, not what he co-authored.**
 
-**Semicolons: none.** His measured rate is 0.39 per thousand words. Split the sentence, or
-use a comma and a conjunction.
+**No semicolon. Anywhere.** The character is `;`. His measured rate is 0.39 per thousand
+words and he has said he never sees one in his own copy. Split the sentence, or use a comma
+and a conjunction.
 
 **Parentheses: sparingly, and they are allowed.** His measured rate is 5.61 per thousand.
-The AIC guide bans them and his own writing does not support the ban. Banning the em dash,
-the semicolon and the parenthesis together leaves only commas and full stops, which
-produces the long undifferentiated "and"-joined sentence that is the current marker of
-machine-written English.
+The AIC guide bans them and his own writing does not support the ban. With the em dash and
+the semicolon gone, banning the parenthesis too would leave only commas and full stops,
+which produces the long "and"-joined sentence that is the current marker of machine-written
+English.
 
-No exclamation marks in cold outreach or in anything an investor reads. In a warm channel
-he doubles them, and an agent should not imitate that.
+No exclamation marks in cold outreach or in anything an investor reads.
 
 ## 5. Numbers
 

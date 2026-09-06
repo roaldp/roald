@@ -48,6 +48,15 @@ tables, no HTML, none of it renders.
 **GitHub pull request.** `<details>` for logs, diffs and test output, with a blank line
 after `</summary>`.
 
+## Punctuation
+
+**No em dash, anywhere.** The character is `—`, the long one. Not in a sentence, not in a
+bullet, not in a label, not in a heading. Use a comma, a full stop, a colon, or a comma with
+"and", "so" or "but". A hyphen `-` in a compound word is fine. An en dash `–` inside a
+numeric range in a table is fine.
+
+**No semicolon, anywhere.** The character is `;`. Split the sentence.
+
 ## Sentences
 
 Around fifteen words on average. One idea per paragraph, ten lines at most. Active voice.
