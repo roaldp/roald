@@ -1,0 +1,10 @@
+{
+  "recorded": "2026-09-06",
+  "window_days": 14,
+  "assistant_replies": 6669,
+  "share_over_half_page_pct": 29.4,
+  "median_reply_words": 33,
+  "em_dash_per_1k": 18.39,
+  "semicolon_per_1k": 4.95,
+  "note": "Half a page taken as 250 words. Recorded before the steering output style was activated."
+}
