@@ -143,6 +143,26 @@ Only send a Slack DM for:
 
 Do NOT notify for routine updates — those go silently into mind.md.
 
+**How the message is shaped.** Slack is not markdown and Roald reads this between two
+other things.
+
+- **Put the point in the first line.** What happened or what he has to decide. Not a
+  topic label, not "here is an update on".
+- **If he has to decide something, say so and recommend one option.** A question with no
+  recommendation costs him a reply.
+- **Parent message under 700 characters.** Detail goes in a thread reply on the same
+  message, which is the only progressive disclosure Slack has. Slack's own guidance caps a
+  message at 4,000 characters and the hard limit is 40,000, but neither is the target
+  here.
+- **No markdown headers, no tables, no HTML.** None of it renders. Slack takes `*bold*`,
+  `_italic_`, `` `code` ``, code blocks, blockquotes and links. Bare lines are the list;
+  bullet characters render literally and make the message look like a pasted file.
+- **One fact per line.** No line runs to two sentences.
+- **No em dash inside a sentence.** Use a comma, or split the sentence.
+- **No sign-off, no name.** The channel already says who you are.
+- **No closing line that tells him what to conclude.** End on the fact, the question or
+  the offer.
+
 **First-week nudge:** If mind.md Recent Events contains fewer than 5 entries AND Pending Tasks has no delegated tasks, append to any Slack notification: "Tip: you can DM me tasks like 'draft a reply to Sarah's email' or 'prep me for my 2pm meeting'." Stop including this nudge once the user has delegated at least one task.
 
 ### 8. Error & Retry Behavior

@@ -1,0 +1,111 @@
+{
+  "generated": "2026-09-06 08:44",
+  "facts": {
+    "repos_with_unloaded_agents_md": [
+      "accounting",
+      "ai-infrastructure-capital"
+    ],
+    "dangling_agent_references": [
+      [
+        "create_plan.md",
+        "plan-reviewer"
+      ]
+    ],
+    "tool_counts": {
+      "Bash": 6596,
+      "Edit": 1238,
+      "Read": 906,
+      "Write": 423,
+      "WebSearch": 305,
+      "Agent": 253,
+      "WebFetch": 176,
+      "ToolSearch": 140,
+      "mcp__claude-in-chrome__computer": 78,
+      "mcp__claude-in-chrome__browser_batch": 66
+    },
+    "bash_vs_file_tools": [
+      6596,
+      1661
+    ],
+    "compaction": {
+      "transcripts": 1979,
+      "with_marker": 15,
+      "large": 104,
+      "large_with_marker": 13
+    },
+    "commands_invoked": {
+      "model": 33,
+      "compact": 12,
+      "nodewatch-review": 4,
+      "login": 2,
+      "implement_plan": 1,
+      "run-skill-generator": 1,
+      "cloudflare:cloudflare-one": 1
+    },
+    "never_invoked": [
+      "check_coding_conventions",
+      "check_plan",
+      "check_project_structure",
+      "code_formatting",
+      "create_PR",
+      "create_plan",
+      "draft_git_commit_message",
+      "goldfish",
+      "gpu-util",
+      "push_all_changes_to_git",
+      "show_filetree_with_edits",
+      "thoroughly_test"
+    ],
+    "roald_per_1k": {
+      "words": 39161,
+      "em_dash": 1.07,
+      "semicolon": 0.56
+    },
+    "agents_per_1k": {
+      "words": 805677,
+      "em_dash": 19.93,
+      "semicolon": 3.71
+    },
+    "instructions_loaded": {
+      "/Users/roaldp/.claude/CLAUDE.md": 7
+    }
+  },
+  "findings": [
+    {
+      "check": "instruction loading",
+      "severity": "HIGH",
+      "detail": "2 repos have an AGENTS.md that is never loaded: accounting, ai-infrastructure-capital",
+      "action": "Commit a one-line CLAUDE.md containing @AGENTS.md at each repo root."
+    },
+    {
+      "check": "dangling references",
+      "severity": "HIGH",
+      "detail": "Instruction files name 1 agents that do not exist: plan-reviewer in create_plan.md",
+      "action": "Create the agent, or delete the reference. A named agent that is missing means that step silently never runs."
+    },
+    {
+      "check": "tool use",
+      "severity": "INFO",
+      "detail": "Bash 6596 against Edit plus Write 1661, a ratio of 4.0. Under bypass permissions the harness tells agents to prefer heredocs and sed.",
+      "action": "Any hook matching only Edit|Write is decorative here. Include Bash in the matcher, or use permissions.deny, which is tool-agnostic."
+    },
+    {
+      "check": "compaction",
+      "severity": "INFO",
+      "detail": "15 of 1979 transcripts carry a compaction marker, and 13 of 104 large ones.",
+      "action": "Compaction is not the durability axis on this machine. Do not build anti-drift mechanisms around surviving it."
+    },
+    {
+      "check": "command usage",
+      "severity": "MEDIUM",
+      "detail": "12 installed commands or skills have never been invoked: check_coding_conventions, check_plan, check_project_structure, code_formatting, create_PR, create_plan, draft_git_commit_message, goldfish, gpu-util, push_all_changes_to_git, show_filetree_with_edits, thoroughly_test",
+      "action": "A command must be typed. A skill can be invoked by the model when its description matches. Convert what should fire automatically into a skill and write the description for the task, not for the file. Delete the rest."
+    },
+    {
+      "check": "writing markers",
+      "severity": "MEDIUM",
+      "detail": "Agent output runs 19.9 em dashes per thousand words over the last 14 days. Roald asked for zero.",
+      "action": "The style rules are not reaching the surface that produces this. Check whether the write-external skill and the steering output style are installed and firing."
+    }
+  ]
+}

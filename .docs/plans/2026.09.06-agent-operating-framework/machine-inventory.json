@@ -1,0 +1,1203 @@
+{
+  "globals": {
+    "CLAUDE.md": null,
+    "CLAUDE.local.md": null,
+    "AGENTS.md": null,
+    ".claude/agents": [
+      "documentation-fetcher.md",
+      "typescript-type-error-fixer.md"
+    ],
+    ".claude/skills": [
+      "goldfish",
+      "gpu-util"
+    ],
+    ".claude/commands": [
+      "check_coding_conventions.md",
+      "check_plan.md",
+      "check_project_structure.md",
+      "code_formatting.md",
+      "create_PR.md",
+      "create_plan.md",
+      "draft_git_commit_message.md",
+      "implement_plan.md",
+      "push_all_changes_to_git.md",
+      "show_filetree_with_edits.md",
+      "thoroughly_test.md"
+    ],
+    ".claude/hooks": null,
+    ".claude/settings.json": true,
+    "~/.claude/CLAUDE.md": 2589,
+    "~/.claude/agents": [
+      "documentation-fetcher.md",
+      "typescript-type-error-fixer.md"
+    ],
+    "~/.claude/skills": [
+      "goldfish",
+      "gpu-util"
+    ],
+    "~/.claude/commands": [
+      "check_coding_conventions.md",
+      "check_plan.md",
+      "check_project_structure.md",
+      "code_formatting.md",
+      "create_PR.md",
+      "create_plan.md",
+      "draft_git_commit_message.md",
+      "implement_plan.md",
+      "push_all_changes_to_git.md",
+      "show_filetree_with_edits.md",
+      "thoroughly_test.md"
+    ]
+  },
+  "roots": [
+    {
+      "path": "/Users/roaldp/conductor/workspaces/roald/lima",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-06",
+      "session_count": 1,
+      "total_mb": 0.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 1543,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/bozeman",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-06",
+      "session_count": 6,
+      "total_mb": 26.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 8907,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note",
+          "model-build",
+          "model-design"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/havana",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-06",
+      "session_count": 1,
+      "total_mb": 2.7,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 9272,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note",
+          "model-build",
+          "model-design"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/tegucigalpa",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-06",
+      "session_count": 1,
+      "total_mb": 5.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 8385,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note",
+          "model-build",
+          "model-design"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp",
+      "kind": "folder",
+      "last_active": "2026-09-06",
+      "session_count": 11,
+      "total_mb": 5.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": [
+          "documentation-fetcher.md",
+          "typescript-type-error-fixer.md"
+        ],
+        ".claude/skills": [
+          "goldfish",
+          "gpu-util"
+        ],
+        ".claude/commands": [
+          "check_coding_conventions.md",
+          "check_plan.md",
+          "check_project_structure.md",
+          "code_formatting.md",
+          "create_PR.md",
+          "create_plan.md",
+          "draft_git_commit_message.md",
+          "implement_plan.md",
+          "push_all_changes_to_git.md",
+          "show_filetree_with_edits.md",
+          "thoroughly_test.md"
+        ],
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/tiny-skylines/cancun",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-06",
+      "session_count": 1,
+      "total_mb": 7.6,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 4384,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3031,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "balance-run",
+          "playtest",
+          "studio-loop"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/roald/atlanta",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-06",
+      "session_count": 1,
+      "total_mb": 0.2,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 1543,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/icp-nodes-claude-directory-v1/lima",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-06",
+      "session_count": 1,
+      "total_mb": 0.2,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/accounting-v1/carthage",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 2,
+      "total_mb": 5.7,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/accounting/bucharest",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 3,
+      "total_mb": 20.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3596,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/athens-v1",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 1,
+      "total_mb": 51.3,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 11,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 8385,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note",
+          "model-build",
+          "model-design"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/icp-nodes-tracker/niamey",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 2,
+      "total_mb": 20.3,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "nodewatch-review"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/NODAO-GPU/pangyo",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 1,
+      "total_mb": 3.0,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 854,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/brasilia",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 1,
+      "total_mb": 6.8,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 8907,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note",
+          "model-build",
+          "model-design"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/madrid-v1",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 4,
+      "total_mb": 39.5,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3086,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/sun-valley",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-05",
+      "session_count": 1,
+      "total_mb": 6.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/mogadishu-v1",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-04",
+      "session_count": 5,
+      "total_mb": 36.3,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 5967,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "crm-sweep"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/lahore",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-04",
+      "session_count": 5,
+      "total_mb": 19.5,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/stuttgart",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-04",
+      "session_count": 2,
+      "total_mb": 111.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 8907,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note",
+          "model-build",
+          "model-design"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/winnipeg",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-04",
+      "session_count": 10,
+      "total_mb": 38.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/astana",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-04",
+      "session_count": 5,
+      "total_mb": 17.9,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/roald/copenhagen",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-03",
+      "session_count": 1,
+      "total_mb": 0.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 1543,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/taipei",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-03",
+      "session_count": 2,
+      "total_mb": 4.2,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/praia",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-03",
+      "session_count": 9,
+      "total_mb": 41.5,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 10253,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/naypyidaw",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-03",
+      "session_count": 3,
+      "total_mb": 5.8,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 8907,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note",
+          "model-build",
+          "model-design"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/NODAO-GPU/st-johns",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-02",
+      "session_count": 1,
+      "total_mb": 8.9,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 854,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/tripoli",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-02",
+      "session_count": 1,
+      "total_mb": 1.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/Documents/Obsidian Vault/Projects/nodao/NODAO GPU Fund/.claude/worktrees/cloudflare-pages-nodao-website-a6aa6e",
+      "kind": "git-repo",
+      "last_active": "2026-09-01",
+      "session_count": 2,
+      "total_mb": 7.0,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 854,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/hamburg",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-01",
+      "session_count": 1,
+      "total_mb": 0.8,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/skopje",
+      "kind": "conductor-workspace",
+      "last_active": "2026-09-01",
+      "session_count": 1,
+      "total_mb": 0.5,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/accounting/yaounde",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-31",
+      "session_count": 1,
+      "total_mb": 1.2,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3596,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/Documents/Obsidian Vault/Allusion Ventures",
+      "kind": "folder",
+      "last_active": "2026-08-31",
+      "session_count": 1,
+      "total_mb": 1.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/Documents/2026.06.12 Obsidian Vault backup/Projects/Borealis (Swiss)/ac-aicapital-os/.claude/worktrees/vigilant-allen-0d87e6",
+      "kind": "git-repo",
+      "last_active": "2026-08-31",
+      "session_count": 1,
+      "total_mb": 6.7,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 5251,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/Documents/2026.06.12 Obsidian Vault backup/Projects/Borealis (Swiss)/ac-aicapital-os",
+      "kind": "git-repo",
+      "last_active": "2026-08-31",
+      "session_count": 1,
+      "total_mb": 16.8,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 5323,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/kinshasa",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-31",
+      "session_count": 1,
+      "total_mb": 0.8,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/Documents/Obsidian Vault/Projects/nodao/NODAO GPU Fund",
+      "kind": "git-repo",
+      "last_active": "2026-08-31",
+      "session_count": 1,
+      "total_mb": 4.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 854,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/nodewatch-runner",
+      "kind": "git-repo",
+      "last_active": "2026-08-31",
+      "session_count": 4,
+      "total_mb": 1.9,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "nodewatch-review"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/yangon",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-30",
+      "session_count": 6,
+      "total_mb": 12.2,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 5259,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/st-georges",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-29",
+      "session_count": 1,
+      "total_mb": 0.9,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 5967,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/paris",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-29",
+      "session_count": 1,
+      "total_mb": 2.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 1169,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3465,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "pitch-copy",
+          "pitch-style-feedback"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/sydney",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-29",
+      "session_count": 2,
+      "total_mb": 5.6,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 5967,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/Documents/Obsidian Vault/Projects/Borealis (Swiss)/ai-infrastructure-capital",
+      "kind": "git-repo",
+      "last_active": "2026-08-28",
+      "session_count": 1,
+      "total_mb": 0.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/sacramento",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-26",
+      "session_count": 1,
+      "total_mb": 6.6,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6471,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/hyderabad",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-25",
+      "session_count": 1,
+      "total_mb": 11.6,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6858,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/tallinn",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-24",
+      "session_count": 1,
+      "total_mb": 0.2,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3086,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/delhi",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-24",
+      "session_count": 1,
+      "total_mb": 1.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3086,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/vienna",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-24",
+      "session_count": 1,
+      "total_mb": 12.9,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/NODAO-GPU/vancouver",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-24",
+      "session_count": 1,
+      "total_mb": 5.9,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 854,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/new-york",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-24",
+      "session_count": 3,
+      "total_mb": 7.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 5848,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/accounting/ndjamena",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-22",
+      "session_count": 1,
+      "total_mb": 2.9,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 3596,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/abuja",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-22",
+      "session_count": 2,
+      "total_mb": 80.3,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6471,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/NODAO-GPU/damascus",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-19",
+      "session_count": 1,
+      "total_mb": 0.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 854,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/london",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-18",
+      "session_count": 1,
+      "total_mb": 2.1,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": 6471,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "meeting-note"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": true
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/icp-nodes-tracker/bamako",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-18",
+      "session_count": 3,
+      "total_mb": 18.3,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": [
+          "nodewatch-review"
+        ],
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/NODAO-GPU/nassau",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-18",
+      "session_count": 1,
+      "total_mb": 1.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 854,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/icp-nodes-tracker/algiers",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-18",
+      "session_count": 1,
+      "total_mb": 28.5,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/ai-infrastructure-capital/brisbane",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-17",
+      "session_count": 1,
+      "total_mb": 22.0,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": null,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/conductor/workspaces/roald/st-georges",
+      "kind": "conductor-workspace",
+      "last_active": "2026-08-13",
+      "session_count": 1,
+      "total_mb": 0.4,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 1543,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    },
+    {
+      "path": "/Users/roaldp/roald",
+      "kind": "git-repo",
+      "last_active": "2026-08-08",
+      "session_count": 1698,
+      "total_mb": 168.7,
+      "working_dirs": 1,
+      "surfaces": {
+        "CLAUDE.md": 1543,
+        "CLAUDE.local.md": null,
+        "AGENTS.md": null,
+        ".claude/agents": null,
+        ".claude/skills": null,
+        ".claude/commands": null,
+        ".claude/hooks": null,
+        ".claude/settings.json": false
+      }
+    }
+  ]
+}
