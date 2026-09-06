@@ -13,10 +13,14 @@ there first if you need the reasoning; this file is the operating procedure.
 ## 1. Run the audit
 
 ```
-python3 scripts/agent_audit.py          # readable report
-python3 scripts/agent_audit.py --json   # for diffing against a previous run
-python3 scripts/agent_inventory.py      # every directory Claude Code has run in, ranked
+python3 ~/.claude/framework-src/scripts/agent_audit.py          # readable report
+python3 ~/.claude/framework-src/scripts/agent_audit.py --json   # for diffing
+python3 ~/.claude/framework-src/scripts/agent_inventory.py      # every dir, ranked
 ```
+
+Absolute paths on purpose. This skill fires in whatever repo you happen to be in, and the
+scripts live in the framework clone, not in that repo. If the clone is missing, the
+framework is not installed: see `scripts/install_framework.py` in the `roald` repo.
 
 Both are read-only. Save the JSON next to the previous run and diff it. **The point is the
 trend, not the snapshot.** A number that moved is the finding.
@@ -115,4 +119,5 @@ Lead with what changed since the last run. Then the findings, worst first, each 
 action. Then the measurements table, so the next run has something to diff against.
 
 Keep it to half a page in chat and write the full report to
-`.docs/plans/<date>-agent-audit.md`. No em dashes, no semicolons.
+`.docs/plans/<date>-agent-audit.md` in the `roald` repo, beside
+`2026.09.06-agent-audit-baseline.json`. No em dashes, no semicolons.
