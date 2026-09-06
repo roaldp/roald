@@ -2,8 +2,8 @@
 """Check that a PLAN.md carries a real measurable outcome, not a described activity.
 
 Responsibilities:
-- Verify the Success criteria section names a metric with a unit, a baseline, a threshold
-  and a read date.
+- Verify the Success criteria section names who is waiting and what makes the answer safe
+  to act on, plus either a metric with a unit or a decision with a person and a date.
 - Verify the MVP scope section names what is out, what the deliverable is, a kill
   condition and a budget.
 - Fail on placeholder text left in from the template.
@@ -31,10 +31,8 @@ from typing import Optional
 # fixed so parsing is unambiguous. The template writes them.
 REQUIRED_FIELDS = {
     "Success criteria": [
-        ("Metric", "the thing being measured, with a unit"),
-        ("Baseline", "what that number is today, or NOT MEASURED"),
-        ("Threshold", "the value that makes the work worth having done"),
-        ("Read date", "when the number gets read"),
+        ("Waiting on it", "who is blocked and by when"),
+        ("Safe to act on when", "what must be true before the answer can be used"),
     ],
     "MVP scope": [
         ("Out", "what is deliberately not being done"),
@@ -43,6 +41,14 @@ REQUIRED_FIELDS = {
         ("Budget", "how much agent work and how much of Roald's review time"),
     ],
 }
+
+# Either a Metric with a unit or a Decision with a person and a date. Most work here has
+# no natural number: the largest job family on this machine is legal and contract review.
+# Requiring a metric of those jobs produced invented percentages, which is worse than none.
+EITHER_OF = [
+    ("Metric", "one thing measured, with a unit"),
+    ("Decision", "the decision this unblocks, with a named person and a date"),
+]
 
 # A metric without one of these is an activity description rather than a measurement.
 UNIT_HINTS = re.compile(
@@ -115,6 +121,8 @@ def check_plan(text: str) -> list:
         for label, meaning in fields:
             problems.extend(check_field(section, heading, label, meaning))
 
+    problems.extend(check_outcome_or_decision(text))
+
     problems.extend(check_metric_quality(text))
     return problems
 
@@ -129,6 +137,39 @@ def check_field(section: str, heading: str, label: str, meaning: str) -> list:
     if PLACEHOLDER.search(value):
         return [f"{heading}: '{label}' still holds template text: {value[:60]}"]
     return []
+
+
+def check_outcome_or_decision(text: str) -> list:
+    """Require either a measurable metric or a named decision, and check whichever is used.
+
+    Args:
+        text: The full plan.
+
+    Returns:
+        Problems found, empty when one of the two forms is present and complete.
+    """
+    section = extract_section(text, "Success criteria")
+    if section is None:
+        return []
+
+    present = [label for label, _ in EITHER_OF
+               if (value := read_field(section, label)) and not PLACEHOLDER.search(value)]
+
+    if not present:
+        return ["Success criteria: needs either a 'Metric' with a unit, or a 'Decision' "
+                "naming who it unblocks and by when. Most work here has no natural number, "
+                "so a decision is the normal answer and inventing a percentage is worse "
+                "than having none."]
+
+    problems: list = []
+    if "Metric" in present:
+        problems.extend(check_metric_quality(text))
+    if "Decision" in present:
+        decision = read_field(section, "Decision")
+        if not DATE.search(decision):
+            problems.append(f"Success criteria: 'Decision' carries no date: {decision[:60]}. "
+                            "A decision with no date is not waiting on anything.")
+    return problems
 
 
 def check_metric_quality(text: str) -> list:

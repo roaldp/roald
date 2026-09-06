@@ -1,7 +1,7 @@
 ---
 name: scope-brief
-description: Screen a request before spending anything on it, then scope what survives. Asks what breaks if we do not do this, what one number says it worked, and what the cheapest test of the risky assumption is, then commits to do it now, cheap test first, not now, or no. Only work that earns it gets a plan file and a budget.
-when_to_use: Use when the instruction is long, covers more than one goal, was clearly dictated rather than typed, contains several "and also" clauses, or names an outcome without naming the work. Also use when the user asks to scope something, or says here is what I want, work out how. Do not use for a single concrete task with an obvious first step.
+description: Screen a request before spending anything on it, then scope what survives. Asks who is waiting on the answer and by when, what has to be true for it to be safe to act on, and what is the smallest thing that gets the decision made, then commits to do it, cheap test first, not now, or no. Tailored to the work that actually runs here: contracts, figures, records, outbound copy and state lookups.
+when_to_use: Use when the request opens something new that would run past about an hour: long, dictated, more than one goal, or an outcome with no named work. Do not use for a turn inside work already in flight, a single concrete action, a question about current state, or an edit to a draft. Median request here is 21 words and only one in nine is a brief, so the usual answer is not to run this.
 ---
 
 # Turning a long brief into a scoped plan
@@ -20,50 +20,78 @@ later. Do not hand that cost back by asking a lot of questions.
 ## 1. Archer mode: the screen
 
 Named after Archer, who does this to Roald in conversation. His move is to refuse a fuzzy
-goal and refuse to spend on it until it has a number.
+goal and refuse to spend on it until someone is waiting on the answer.
 
-**Run this before discovery, not after.** Discovery is where the tokens go. Screening first
-is the whole point: most requests should never reach a plan.
+The questions below are tailored to the work that actually runs here, measured across 1,741
+of Roald's own prompts. See `08-what-the-work-actually-is.md` in the framework repo. The
+short version: this is a fund and infrastructure operator's inbox, not a product backlog.
+The largest single family is legal and contract work at 12 per cent. Software is 9 per cent.
+Almost everything has a counterparty and a date behind it.
 
-**The default answer is no.** The burden is on the work to earn the spend, not on you to
-find a reason to decline.
+### First, the exit
 
-### Three questions, answered in one paragraph
+**Median typed prompt here is 21 words, and only 11 per cent run past 60.** Most turns are
+moves inside work already in flight, not new jobs. "Ask for Yonten's confirmation of this
+timeline" does not need a screen, it needs doing.
 
-**1. What breaks if we do not do this?** If the honest answer is nothing, the answer is no.
-Say so and stop. An improvement nobody is waiting on is not a job.
+If the request continues something already underway, or names one concrete action with an
+obvious first step, **do it and say nothing about scoping**. A screen that fires on every
+turn is the waste it was built to prevent.
 
-**2. What one number says it worked?** With a unit, and the value it holds today. If you
-cannot name a unit, this is a wish rather than a job. If nobody has ever measured it,
-**measuring it is the job** and it is usually an hour, not a week.
+Screen only when the request opens something new and would run past roughly an hour.
 
-**3. What is the cheapest thing that would show us we are wrong?** That is the work. Not the
-full idea, the test of the assumption the full idea rests on. Build that and nothing else.
+### Then three questions, answered in one paragraph, before any tool call
+
+**1. What decision or obligation is waiting on this? Whose, and by when?**
+
+Name the person and the date. Can we sign. What do we quote. Is the wire due. Can this be
+sent. If nothing and nobody is waiting, it is a nice-to-have, and the verdict is not now.
+
+**2. What has to be true for the answer to be safe to act on?**
+
+This is the question that fits this work, and it is not about a metric. Roald acts on agent
+output with money and legal exposure behind it. What goes wrong here is not building the
+wrong feature, it is working from a superseded document, quoting one of three versions of a
+figure, or treating an unmerged record as real.
+
+What "safe" means depends on the family:
+
+| Family | Safe to act on means |
+|---|---|
+| Legal and contract | The current version, named. Which clause, which draft, who has reviewed it, what is superseded. |
+| Numbers and model | Every figure traced to a source, and the assumptions stated. Which fee is in and which is out. |
+| Record keeping | It is in the authoritative store and merged, not sitting in a branch. The CRM counts only what is committed. |
+| Outbound copy | Every claim is one we can stand behind, and the facts come from the brief rather than from the draft. |
+| State lookup | The answer names its source file and its date, and says what it could not check. |
+| Build and code | It runs, and there is a way to see that it runs. |
+| Research and decision | The sources are named, and where they disagree that is reported rather than smoothed over. |
+
+If you cannot say what would make it safe, that is the finding. Say so.
+
+**3. What is the smallest thing that gets that decision made?**
+
+Not the full request. The smallest thing that unblocks the person in question 1. Everything
+else waits until they are unblocked.
 
 ### Then commit to one of four verdicts
 
 | Verdict | When | What happens |
 |---|---|---|
-| **Do it** | Small, obvious, and question 1 has a real answer | Skip the plan, do it, say what you did |
-| **Cheap test first** | The idea rests on an assumption nobody has checked | Build only the test, set a budget, report the number |
-| **Not now** | Real, but something else is worth more this week | One line in the plan directory, no further spend |
-| **No** | Question 1 came back empty, or the cost exceeds what the number is worth | Say so in one line and stop |
+| **Do it** | Someone is waiting and the work is under a few hours | Do it, report, no plan file |
+| **Cheap test first** | It rests on something nobody has checked | Check that one thing, report the answer, then re-screen |
+| **Not now** | Real, but nobody is waiting on it this week | One line, no further spend |
+| **No** | Nobody is waiting, or the cost exceeds what the decision is worth | One line, and say why |
 
-Say the verdict out loud in your first reply. **Only "cheap test first" and a large "do it"
-earn a plan file.** Everything else is one or two lines.
+Say the verdict in your first reply. **Only a multi-day "do it" or a "cheap test first"
+earns a plan file.**
 
 ### The budget
 
-Every verdict that spends anything carries a budget: roughly how much agent work, and how
-much of Roald's review time. Write it down before starting.
+Anything that spends carries one: roughly how much agent work, and how much of Roald's
+review time. Write it down before starting.
 
-**When you hit it, stop and report rather than continue.** A job that runs past its budget
-has told you the scope was wrong, and the right response is a new screen, not more spend.
-
-### What this costs you to run
-
-Under a minute of thinking and no tool calls. That is deliberate. A screen that costs as
-much as the work is not a screen.
+**When you hit it, stop and report rather than continue.** Running past a budget is the
+scope telling you it was wrong, and the answer is a new screen, not more spend.
 
 ## 2. Write the brief down, if the verdict earned a plan
 

@@ -41,22 +41,34 @@ the agent quietly redefining the job into one it finds easier.>
 
 ## Success criteria
 
-<From the screen. Four lines, before any given-when-then.
-`scripts/check_plan_metrics.py` fails the plan if any is missing or still holds template
-text.>
+<From the screen. `scripts/check_plan_metrics.py` fails the plan if any of these is missing
+or still holds template text.>
 
-**Metric:** <one thing being measured, with a unit. Percentage, minutes, euros, count per
-week. No unit means this is still an activity rather than an outcome.>
+**Waiting on it:** <who is blocked by this, and by when. A person and a date. If nobody is
+waiting, the verdict should have been not now.>
 
-**Baseline:** <what that number is today, with the date it was read. Or NOT MEASURED, which
-is an allowed answer and usually means measuring it is the whole MVP.>
+**Safe to act on when:** <what has to be true before the answer can be used. The current
+document version named. Every figure traced to a source. The record merged rather than
+sitting in a branch. The claim one we can stand behind.>
+
+<Then one of the next two, not both. Most work here has no natural number, and inventing a
+percentage is worse than having none.>
+
+**Decision:** <the decision this unblocks, the person who makes it, and the date it is
+needed. Use this for legal, records, copy, lookups and research.>
+
+**Metric:** <one thing measured, with a unit. Use this for build, ops and anything where a
+number genuinely moves. Then also fill baseline, threshold and read date below.>
+
+**Baseline:** <what that number is today, with the date read. Or NOT MEASURED, which is an
+allowed answer and usually means measuring it is the whole job.>
 
 **Threshold:** <the value that makes the work worth having done. If half of it would leave
 you regretting the time, the threshold is wrong.>
 
-**Read date:** <yyyy-mm-dd. A metric with no read date is never read.>
+**Read date:** <yyyy-mm-dd.>
 
-<Then the behaviour, as given-when-then. An observable trigger and an observable outcome.>
+<Then the behaviour, as given-when-then.>
 
 1. Given <context>, when <action>, then <observable outcome>.
 2. ...
