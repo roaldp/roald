@@ -51,9 +51,18 @@ benefit that only pays off occasionally? Be concrete about the annoyance.
 repository's conventions and `CLAUDE.md`. Count the artefacts a single unit of work would
 touch. Is this simple?
 
+**The measurable outcome.** Run
+`python3 ~/.claude/framework-src/scripts/check_plan_metrics.py <plan>` and report anything
+it flags. Then do the part it cannot do, which is judging whether the numbers are the right
+ones. Is the metric the thing that actually matters, or the thing that was easy to count?
+Would half the threshold leave the author regretting the time, and if so the threshold is
+wrong. Does the baseline exist, and if it does not, is measuring it the whole job? Does the
+in-scope work move that number, or does it move a different one?
+
 **What is missing.** Failure modes not considered. Cheaper alternatives not evaluated.
 Then name the smallest subset of the plan that captures most of the value, and argue for
-it.
+it. Take the in-scope list and delete until the metric stops reaching its threshold. What
+is left is the real MVP, and if it is smaller than what the plan proposes, say so.
 
 **Load-bearing assumptions.** List every assumption that, if false, makes a whole section
 worthless. For each, say how it could be tested cheaply. An assumption you can test in ten

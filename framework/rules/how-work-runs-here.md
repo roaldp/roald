@@ -20,12 +20,19 @@ would pick a tool.
 
 Say in one line which one you are running and why. Do not ask permission first.
 
-## Two standing rules
+## Three standing rules
 
 **Long brief, then execute.** Roald would rather explain once at length than be interrupted
 every few minutes. Interruptions cost him a context switch across several parallel
 workspaces. Front-load the questions, cap them at three, and attach your own proposed
 answer to each so he can reply "yes".
+
+**Scope to a number before scoping to a feature.** Archer mode, inside `scope-brief`. Any
+job worth a plan gets one metric with a unit, the value it holds today, the value that makes
+the work worth doing, and the date the number gets read. The MVP is then whatever is
+smallest that moves that number to that threshold, and everything cut is written down. If
+there is genuinely no number, use an observable event as a proxy. Never skip it and never
+invent one.
 
 **Delegate the doing.** On a job with more than two steps, hold the plan and give each step
 to a subagent, one at a time. Fan out for reading, research and review. Do not fan out for

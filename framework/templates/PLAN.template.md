@@ -41,23 +41,46 @@ the agent quietly redefining the job into one it finds easier.>
 
 ## Success criteria
 
-<Given, when, then. An observable trigger and an observable outcome. These get checked
-mechanically at the end, so a criterion that cannot be checked is not finished being
-written.>
+<Archer mode, questions 3 to 6. Fill these four lines before writing any given-when-then.
+`scripts/check_plan_metrics.py` fails the plan if any is missing or still holds template
+text.>
+
+**Metric:** <one thing being measured, with a unit. Percentage, minutes, euros, count per
+week. No unit means this is still an activity rather than an outcome.>
+
+**Baseline:** <what that number is today, with the date it was read. Or NOT MEASURED, which
+is an allowed answer and usually means measuring it is the whole MVP.>
+
+**Threshold:** <the value that makes the work worth having done. If half of it would leave
+you regretting the time, the threshold is wrong.>
+
+**Read date:** <yyyy-mm-dd. A metric with no read date is never read.>
+
+<Then the behaviour, as given-when-then. An observable trigger and an observable outcome.>
 
 1. Given <context>, when <action>, then <observable outcome>.
-2. …
+2. ...
 
 ## MVP scope
 
-**In:** <the minimum that meets the goal>
+<Archer mode, questions 7 to 9, plus the cost check.>
 
-**Out:** <everything deliberately not being done, named>
+**In:** <the smallest thing that moves the metric to the threshold. Take the full idea and
+delete until it stops moving the number. Do that twice.>
+
+**Out:** <everything the two rounds of cutting removed, named, so it is visible later and
+does not creep back>
 
 **What the deliverable looks like:** <the concrete output requirements. A file at a path, a
 message of a given shape, a script with a given interface. Success criteria say how it must
-behave; this says what it must be. Roald named this stage explicitly and it has no other
-home.>
+behave, this says what it must be.>
+
+**Kill condition:** <if the metric has not reached the threshold by the read date, the work
+stops rather than gets extended. Write it now, while it is cheap.>
+
+**Estimated cost:** <agent time, Roald's review time, and anything this commits him to
+afterwards. If that is close to what moving the number is worth, propose the smaller
+version instead.>
 
 <The "out" list is the section that does the work. Roald asked for the minimum format that
 meets the intended goal, prioritising scope success, speed, and simplicity for reviewers
