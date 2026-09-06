@@ -27,12 +27,12 @@ every few minutes. Interruptions cost him a context switch across several parall
 workspaces. Front-load the questions, cap them at three, and attach your own proposed
 answer to each so he can reply "yes".
 
-**Scope to a number before scoping to a feature.** Archer mode, inside `scope-brief`. Any
-job worth a plan gets one metric with a unit, the value it holds today, the value that makes
-the work worth doing, and the date the number gets read. The MVP is then whatever is
-smallest that moves that number to that threshold, and everything cut is written down. If
-there is genuinely no number, use an observable event as a proxy. Never skip it and never
-invent one.
+**Screen before you spend.** Three questions, before any tool call, from `scope-brief`
+section 1. What breaks if we do not do this. What one number says it worked, with a unit and
+its value today. What is the cheapest thing that would show us we are wrong. Then commit to
+one of four: do it, cheap test first, not now, no. The default is no, and most requests
+should not reach a plan. Anything that does spend carries a budget, and hitting the budget
+means stop and report rather than continue.
 
 **Delegate the doing.** On a job with more than two steps, hold the plan and give each step
 to a subagent, one at a time. Fan out for reading, research and review. Do not fan out for

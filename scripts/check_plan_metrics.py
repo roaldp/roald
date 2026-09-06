@@ -5,12 +5,13 @@ Responsibilities:
 - Verify the Success criteria section names a metric with a unit, a baseline, a threshold
   and a read date.
 - Verify the MVP scope section names what is out, what the deliverable is, a kill
-  condition and an estimated cost.
+  condition and a budget.
 - Fail on placeholder text left in from the template.
 
-This is the mechanical half of Archer mode, described in
+This is the mechanical half of the screen described in
 framework/skills/scope-brief/SKILL.md. It is a lint and not a judgement: it can tell you a
-threshold is missing, it cannot tell you the threshold is the right one.
+threshold is missing, it cannot tell you the threshold is the right one, and it cannot tell
+you the work should have been declined.
 
 Exit code 0 when the plan passes, 1 when it does not, so it can gate a step.
 """
@@ -39,7 +40,7 @@ REQUIRED_FIELDS = {
         ("Out", "what is deliberately not being done"),
         ("What the deliverable looks like", "a file at a path, a message of a given shape"),
         ("Kill condition", "what makes the work stop rather than get extended"),
-        ("Estimated cost", "agent time and Roald's review time"),
+        ("Budget", "how much agent work and how much of Roald's review time"),
     ],
 }
 
@@ -86,7 +87,7 @@ def main() -> None:
     print(f"{args.plan}: {len(problems)} problems\n")
     for problem in problems:
         print(f"  {problem}")
-    print("\nArcher mode: framework/skills/scope-brief/SKILL.md section 4.")
+    print("\nThe screen: framework/skills/scope-brief/SKILL.md section 1.")
     raise SystemExit(1)
 
 

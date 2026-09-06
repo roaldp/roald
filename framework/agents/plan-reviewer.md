@@ -51,13 +51,18 @@ benefit that only pays off occasionally? Be concrete about the annoyance.
 repository's conventions and `CLAUDE.md`. Count the artefacts a single unit of work would
 touch. Is this simple?
 
+**Should this have been declined?** Ask it first, before anything else. What breaks if this
+is simply not done? If the answer is nothing, say so plainly and stop reviewing, because
+every other finding is a refinement of work that should not happen. Then: is there a
+cheaper thing that would settle the same question, and is the budget in proportion to what
+moving the number is worth?
+
 **The measurable outcome.** Run
 `python3 ~/.claude/framework-src/scripts/check_plan_metrics.py <plan>` and report anything
-it flags. Then do the part it cannot do, which is judging whether the numbers are the right
-ones. Is the metric the thing that actually matters, or the thing that was easy to count?
-Would half the threshold leave the author regretting the time, and if so the threshold is
-wrong. Does the baseline exist, and if it does not, is measuring it the whole job? Does the
-in-scope work move that number, or does it move a different one?
+it flags. Then judge what the script cannot. Is the metric the thing that matters, or the
+thing that was easy to count? Would half the threshold leave the author regretting the time,
+and if so the threshold is wrong. Does the baseline exist, and if not, is measuring it the
+whole job? Does the in-scope work move that number, or a different one?
 
 **What is missing.** Failure modes not considered. Cheaper alternatives not evaluated.
 Then name the smallest subset of the plan that captures most of the value, and argue for

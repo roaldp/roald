@@ -41,7 +41,7 @@ the agent quietly redefining the job into one it finds easier.>
 
 ## Success criteria
 
-<Archer mode, questions 3 to 6. Fill these four lines before writing any given-when-then.
+<From the screen. Four lines, before any given-when-then.
 `scripts/check_plan_metrics.py` fails the plan if any is missing or still holds template
 text.>
 
@@ -63,10 +63,8 @@ you regretting the time, the threshold is wrong.>
 
 ## MVP scope
 
-<Archer mode, questions 7 to 9, plus the cost check.>
-
-**In:** <the smallest thing that moves the metric to the threshold. Take the full idea and
-delete until it stops moving the number. Do that twice.>
+**In:** <the cheapest thing that would show us we are wrong, and nothing else. Not the full
+idea, the test of the assumption the full idea rests on.>
 
 **Out:** <everything the two rounds of cutting removed, named, so it is visible later and
 does not creep back>
@@ -78,9 +76,9 @@ behave, this says what it must be.>
 **Kill condition:** <if the metric has not reached the threshold by the read date, the work
 stops rather than gets extended. Write it now, while it is cheap.>
 
-**Estimated cost:** <agent time, Roald's review time, and anything this commits him to
-afterwards. If that is close to what moving the number is worth, propose the smaller
-version instead.>
+**Budget:** <roughly how much agent work and how much of Roald's review time. Stop and
+report when you hit it. Running past the budget means the scope was wrong, and the response
+is a new screen rather than more spend.>
 
 <The "out" list is the section that does the work. Roald asked for the minimum format that
 meets the intended goal, prioritising scope success, speed, and simplicity for reviewers

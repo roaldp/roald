@@ -1,6 +1,6 @@
 ---
 name: scope-brief
-description: Turn a long, spoken or rambling instruction into a scoped work plan before doing any of it. Runs discovery, then Archer mode which forces the goal down to a measurable number with a baseline and a threshold, then ideation, then an MVP cut sized by that number, and writes one plan file. Asks at most three questions, each with a proposed answer.
+description: Screen a request before spending anything on it, then scope what survives. Asks what breaks if we do not do this, what one number says it worked, and what the cheapest test of the risky assumption is, then commits to do it now, cheap test first, not now, or no. Only work that earns it gets a plan file and a budget.
 when_to_use: Use when the instruction is long, covers more than one goal, was clearly dictated rather than typed, contains several "and also" clauses, or names an outcome without naming the work. Also use when the user asks to scope something, or says here is what I want, work out how. Do not use for a single concrete task with an obvious first step.
 ---
 
@@ -10,11 +10,65 @@ Roald will not type a command to start this. If the instruction in front of you 
 brief rather than a task, run this without being asked and say in one line that you are
 doing so.
 
-The whole point is that he pays the cost of explaining once, up front, instead of in a
-dozen small corrections later. Do not hand that cost back to him by asking a lot of
-questions.
+**Section 1 is a screen and it runs first, before any tool call.** Most requests should not
+survive it. The point of this skill is not to produce good plans, it is to stop tokens being
+spent on work that was never worth doing.
 
-## 1. Write the brief down before you do anything else
+He pays the cost of explaining once, up front, instead of in a dozen small corrections
+later. Do not hand that cost back by asking a lot of questions.
+
+## 1. Archer mode: the screen
+
+Named after Archer, who does this to Roald in conversation. His move is to refuse a fuzzy
+goal and refuse to spend on it until it has a number.
+
+**Run this before discovery, not after.** Discovery is where the tokens go. Screening first
+is the whole point: most requests should never reach a plan.
+
+**The default answer is no.** The burden is on the work to earn the spend, not on you to
+find a reason to decline.
+
+### Three questions, answered in one paragraph
+
+**1. What breaks if we do not do this?** If the honest answer is nothing, the answer is no.
+Say so and stop. An improvement nobody is waiting on is not a job.
+
+**2. What one number says it worked?** With a unit, and the value it holds today. If you
+cannot name a unit, this is a wish rather than a job. If nobody has ever measured it,
+**measuring it is the job** and it is usually an hour, not a week.
+
+**3. What is the cheapest thing that would show us we are wrong?** That is the work. Not the
+full idea, the test of the assumption the full idea rests on. Build that and nothing else.
+
+### Then commit to one of four verdicts
+
+| Verdict | When | What happens |
+|---|---|---|
+| **Do it** | Small, obvious, and question 1 has a real answer | Skip the plan, do it, say what you did |
+| **Cheap test first** | The idea rests on an assumption nobody has checked | Build only the test, set a budget, report the number |
+| **Not now** | Real, but something else is worth more this week | One line in the plan directory, no further spend |
+| **No** | Question 1 came back empty, or the cost exceeds what the number is worth | Say so in one line and stop |
+
+Say the verdict out loud in your first reply. **Only "cheap test first" and a large "do it"
+earn a plan file.** Everything else is one or two lines.
+
+### The budget
+
+Every verdict that spends anything carries a budget: roughly how much agent work, and how
+much of Roald's review time. Write it down before starting.
+
+**When you hit it, stop and report rather than continue.** A job that runs past its budget
+has told you the scope was wrong, and the right response is a new screen, not more spend.
+
+### What this costs you to run
+
+Under a minute of thinking and no tool calls. That is deliberate. A screen that costs as
+much as the work is not a screen.
+
+## 2. Write the brief down, if the verdict earned a plan
+
+Only for a large "do it" or a "cheap test first". Everything else gets one or two lines
+in the reply and no file.
 
 Create `.docs/plans/<yyyy.mm.dd>-<slug>/PLAN.md` from the template at
 `~/.claude/framework-src/framework/templates/PLAN.template.md`, and paste his instruction
@@ -29,7 +83,7 @@ mkdir -p .docs/plans && echo '.docs/plans/<yyyy.mm.dd>-<slug>/PLAN.md' > .docs/p
 That file is what the re-anchor hook reads. Without it a delegated subagent has no idea a
 plan exists.
 
-## 2. Discovery, before ideas
+## 3. Discovery, before ideas
 
 Read before you think. What already exists, what was tried before and abandoned, what the
 constraints actually are, what prior art is already on the machine. Check every claim you
@@ -39,7 +93,7 @@ Fill in the Discovery section, and end it with **the problem restated in your ow
 one paragraph**. That paragraph is the main output of this stage. Reading it costs him less
 than answering questions, and it is where a misunderstanding surfaces.
 
-## 3. The intent check, capped at three questions
+## 4. The intent check, capped at three questions
 
 Roughly a third of what looks ambiguous is answerable by reading the repository. Do that
 first. Then ask **at most three questions in total, not three per topic**, and attach your
@@ -51,92 +105,6 @@ preferences are close to zero, and the answer is already in
 
 An unresolved question that blocks nothing does not stop work. Record the assumption in the
 plan, mark it, and carry on.
-
-## 4. Archer mode
-
-Named after Archer, a friend of Roald's who does this to him in conversation and is the
-reason this section exists. Archer's move is to refuse a fuzzy goal. He keeps asking until
-the thing you want is a number, and then asks what the smallest piece of work is that moves
-that number.
-
-Run the cascade in order. **Answer every question yourself first**, from the repository and
-from what you found in discovery. Write your answer into the plan. Only the ones you
-genuinely cannot resolve become part of the three questions in section 3, and there is
-rarely more than one.
-
-If a step has no answer, that is the finding. Say so rather than inventing one.
-
-### The nine questions
-
-**1. What is different in the world if this works?** Not "better onboarding". A thing that
-is observably different afterwards. If you cannot finish the sentence "afterwards, X
-happens and it did not before", you have not found the job yet.
-
-**2. Who notices, and how do they notice?** A named person or a named group, and the moment
-they would notice. If nobody notices, the work has no value and belongs in the out-list.
-
-**3. What is the number?** One metric, with a unit. Percentage, minutes, euros, count per
-week. If you cannot name a unit, go back to question 1, because you are still describing an
-activity rather than an outcome.
-
-**4. What is that number today?** The baseline. **If there is no baseline, measuring it is
-the first step of the job and it is often the entire MVP.** Say that plainly. A great deal
-of work gets built to fix something nobody has measured.
-
-**5. What value would make this worth having done?** The threshold, not "any improvement".
-Archer's question here is the sharp one: if it moved by half that, would you regret the
-time? If yes, the threshold is wrong.
-
-**6. When do we read it?** A date. A metric with no read date is never read, and the work
-quietly becomes unfalsifiable.
-
-**7. What is the smallest thing that moves this number?** Now cut. **The MVP is defined by
-the metric, not by the feature.** Take the full idea and ask what could be deleted while
-still moving the number by the threshold. Then ask again. Two rounds, minimum.
-
-**8. What are we deliberately not doing?** The out-list, named. Everything from question 7's
-two rounds of cutting lands here, so it is visible later and does not creep back.
-
-**9. What would make us stop?** The kill condition. If the number has not moved by the
-threshold by the read date, the work stops rather than gets extended. Write the condition
-now, while it is cheap, not later when the work has sunk cost in it.
-
-### When there is genuinely no metric
-
-Some jobs are real and have no natural number: write a document, restructure a folder,
-answer a legal question. Do not skip the cascade and do not invent a fake percentage. Use a
-proxy, which is an observable event rather than a measurement:
-
-- A decision that gets made, by a named person, by a date.
-- A draft that gets sent without the first paragraph being rewritten.
-- A question that stops being asked.
-- A file that a named person opens and acts on.
-
-A proxy still needs questions 4 through 9. "Roald sends it without rewriting the opening,
-first attempt, by Friday" is a threshold, a read date and a kill condition in one line.
-
-### The cost check
-
-Before writing the steps, put the estimated cost next to the threshold. Agent time, Roald's
-review time, and anything the work commits him to afterwards.
-
-If the cost is close to or above what moving the number is worth, **say so and propose the
-smaller version instead.** This is the point of the whole section. Archer's actual
-contribution is not the metric, it is refusing to spend a week on something worth an
-afternoon.
-
-### What goes in the plan
-
-The Success criteria section takes the answers to 3 through 6, and the MVP scope section
-takes 7 through 9. Both are checked mechanically:
-
-```
-python3 ~/.claude/framework-src/scripts/check_plan_metrics.py <path to PLAN.md>
-```
-
-That script fails when a metric has no unit, no baseline, no threshold, no read date or no
-kill condition. Run it before showing the plan to Roald. It is a lint, not a judgement: it
-cannot tell you the metric is the right one.
 
 ## 5. Ideation, then requirements, then the MVP cut
 
