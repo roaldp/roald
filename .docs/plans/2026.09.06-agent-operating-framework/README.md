@@ -8,8 +8,8 @@ other repo has been touched. Everything below is on this branch.
 **1. Commit a one-line `CLAUDE.md` to three repos.** Claude Code loads `CLAUDE.md` and
 `CLAUDE.local.md` and nothing else. Thirty-one directories here have an `AGENTS.md` and no
 `CLAUDE.md`, and they carry 517 MB of the roughly 900 MB of agent transcript on this
-machine. Your `ai-infrastructure-capital` router — the one that separates the three
-vehicles and names the Iceland-story mistake — is not loaded in any workspace. `athens-v1`
+machine. Your `ai-infrastructure-capital` router, the one that separates the three vehicles and
+names the Iceland-story mistake, is not loaded in any workspace. `athens-v1`
 has the one-line fix uncommitted, and a live probe there quoted the router back correctly
 while the same probe in `hamburg` answered `LOADED=no`.
 
@@ -27,7 +27,7 @@ It refuses to run from this workspace on purpose. Clone to `~/.claude/framework-
 doing it, starting with the logging hook alone for two weeks.**
 
 **3. Rank three drafts of the same email.** They are at `/tmp/styletest/A.txt`, `B.txt`,
-`C.txt` — no style guide, guide plus corpus, guide only. This is the acceptance test for
+`C.txt`. No style guide, guide plus corpus, guide only. This is the acceptance test for
 the writing problem and nothing substitutes for your read. If A wins, the style work is
 wrong and should stop.
 
@@ -63,9 +63,9 @@ GitHub. That was your question about the chat interface, and the answer is no.
 
 **Your writing was measured.** 1,707 typed prompts, 48,664 words. Em dashes at 1.01 per
 thousand against a human baseline of 3.23, semicolons at 0.39, mean sentence 14.6 words. The
-style rules are now calibrated to that rather than to a published study. The gap: no long
-English prose you wrote unaided and no cold outbound email, which are exactly the registers
-you complained about.
+style rules are now calibrated to that rather than to a published study. The gap: no long English
+prose you wrote unaided and no cold outbound email, which are exactly the registers you
+complained about.
 
 ## What was built
 
@@ -103,7 +103,7 @@ Seven artefacts in `framework/` and two scripts. All tested except the three mar
 ## What I would not claim
 
 Every empirical probe ran on Haiku 4.5 for cost while this machine runs Opus 5. The
-mechanical results hold regardless — which hooks fire, what their payloads carry, what
+mechanical results hold regardless: which hooks fire, what their payloads carry, what
 loads. Two behavioural results do not transfer and are marked as such.
 
 The intake procedure and the orchestration skill are designed and not built, because the

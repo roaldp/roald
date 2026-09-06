@@ -19,7 +19,7 @@ answering five questions, so this paragraph is doing most of the intake work.>
 
 ## Open questions
 
-<The intent check. Only what reading could not answer — roughly a third of apparent
+<The intent check. Only what reading could not answer. Roughly a third of apparent
 ambiguity is resolvable from the repo, and asking about it wastes Roald's attention.
 Budget about three questions per genuinely ambiguous area. Never ask about style or
 aesthetic preference; collect exemplars instead.>
@@ -27,8 +27,8 @@ aesthetic preference; collect exemplars instead.>
 <Each question carries the agent's own proposed answer, so Roald can reply "yes" instead of
 writing a paragraph.>
 
-- [ ] **Q1.** <question> — *Proposed answer: <the agent's own best answer>.*
-- [ ] **Q2.** <question> — *Proposed answer: <…>.*
+- [ ] **Q1.** <question>  Proposed answer: <the agent's own best answer>.
+- [ ] **Q2.** <question>  Proposed answer: <...>.
 
 <An unresolved question that blocks nothing does not stop work. Record the assumption, mark
 it, and continue.>
@@ -68,8 +68,8 @@ and users.>
 <Each step names its verification. A step whose verification is "it looks right" is not
 finished being written either.>
 
-- [ ] **1.** <step> — *verified by: <what will be read to prove it>*
-- [ ] **2.** <step> — *verified by: <…>*
+- [ ] **1.** <step>  Verified by: <what will be read to prove it>
+- [ ] **2.** <step>  Verified by: <...>
 
 ## Log
 
@@ -77,4 +77,4 @@ finished being written either.>
 deviation that is written down is a decision. A deviation that is not written down is
 drift, and it is the failure this whole file exists to catch.>
 
-- <yyyy-mm-dd hh:mm> —
+- <yyyy-mm-dd hh:mm>:

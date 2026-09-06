@@ -17,12 +17,12 @@ governs every sentence you are about to write.
 what Roald actually sent on the right. Those pairs are the mechanism and the rules are the
 backstop, so read section 1 slowly rather than skimming to the rule list.
 
-For a short message, `CORE.md` is enough. One measurement on 2026-09-06 — a single email,
-one model, so treat it as an indication and not a result — found that loading `CORE.md`
-alone produced nearly the same draft as loading it plus the full 1,176-line corpus.
+For a short message, `CORE.md` is enough. One measurement on 2026-09-06 found that loading `CORE.md`
+alone produced nearly the same draft as loading it plus the full 1,176-line corpus. That
+was a single email on one model, so treat it as an indication and not a result.
 
-For anything long, high-stakes, or in a register `CORE.md` warns is thin — long English
-prose, cold outbound email — read section A of the corpus as well, at
+For anything long, high-stakes, or in a register `CORE.md` warns is thin, meaning long
+English prose or cold outbound email, read section A of the corpus as well, at
 `.docs/plans/2026.09.06-agent-operating-framework/research/05-roald-writing-corpus.md` in
 the `roald` repo. Those are the labelled pairs, and they are the only direct evidence for
 the registers the rules are extrapolating into.
