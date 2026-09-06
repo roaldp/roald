@@ -264,6 +264,9 @@ def check_command_usage(report: Report) -> None:
                           if not entry.name.startswith(".")}
 
     never = sorted(name for name in installed if invoked.get(name, 0) == 0)
+    # A skill invoked by the model leaves no <command-name> marker, so this check only sees
+    # what the user typed. Read it as "never typed", and use the framework-logs and the
+    # transcripts to find model invocations.
     report.facts["commands_invoked"] = dict(invoked.most_common(15))
     report.facts["never_invoked"] = never
 
@@ -271,11 +274,12 @@ def check_command_usage(report: Report) -> None:
         report.add(
             "command usage",
             "MEDIUM",
-            f"{len(never)} installed commands or skills have never been invoked: "
+            f"{len(never)} installed commands or skills have never been typed by the user: "
             + ", ".join(never),
-            "A command must be typed. A skill can be invoked by the model when its "
-            "description matches. Convert what should fire automatically into a skill and "
-            "write the description for the task, not for the file. Delete the rest.",
+            "This counts typed invocations only, so a skill the model invokes itself will "
+            "still appear here. What matters is whether each one has a description written "
+            "for the task and a when_to_use written for the trigger. Without those, the "
+            "model cannot route to it and it will never fire either way.",
         )
 
 
